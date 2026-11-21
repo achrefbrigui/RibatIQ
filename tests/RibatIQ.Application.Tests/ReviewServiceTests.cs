@@ -175,6 +175,9 @@ public sealed class ReviewServiceTests
             return Task.FromResult(diff);
         }
 
+        public Task<long?> GetFileSizeAsync(string repositoryRoot, string revision, string path, CancellationToken cancellationToken) =>
+            Task.FromResult<long?>(null);
+
         public Task<string> ReadFileAsync(string repositoryRoot, string revision, string path, CancellationToken cancellationToken)
         {
             ReadRequests.Add((revision, path));

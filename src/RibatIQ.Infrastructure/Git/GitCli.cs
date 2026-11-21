@@ -73,6 +73,32 @@ public sealed class GitCli : IGitClient
         throw Failure("diff", result);
     }
 
+    public async Task<long?> GetFileSizeAsync(string repositoryRoot, string revision, string path, CancellationToken cancellationToken)
+    {
+        // "<mode> <type> <object> <size>\t<path>", or nothing when the path does not exist at that revision.
+        var result = await RunAsync(
+            repositoryRoot, ["-c", "core.quotepath=false", "ls-tree", "-l", "--end-of-options", revision, "--", path], cancellationToken)
+            .ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            throw Failure($"inspect '{path}' at {revision}", result);
+        }
+
+        var line = result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        var fields = line?.Split('\t', 2)[0].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        // Only regular files count: symbolic links (120000), directories and submodules are treated as absent.
+        if (fields is not { Length: 4 } || fields[1] != "blob" || fields[0] is not ("100644" or "100755"))
+        {
+            return null;
+        }
+
+        return long.TryParse(fields[3], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var size)
+            ? size
+            : throw new OperationFailedException($"Git returned an unexpected size for '{path}'.");
+    }
+
     public async Task<string> ReadFileAsync(string repositoryRoot, string revision, string path, CancellationToken cancellationToken)
     {
         var result = await RunAsync(repositoryRoot, ["cat-file", "blob", $"{revision}:{path}"], cancellationToken).ConfigureAwait(false);
