@@ -1,14 +1,28 @@
-# RibatIQ
+<!-- Relative image paths do not render on nuget.org: switch to absolute URLs once the repository is public. -->
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/ribatiq-logo-dark.png">
+    <img alt="RibatIQ" src="docs/assets/ribatiq-logo-light.png" width="380">
+  </picture>
+</p>
 
-**Open-source AI code intelligence for .NET.**
-*Built for developers who never stop improving. Guarding code. Growing intelligence.*
+<p align="center">
+  <b>AI-powered code review for C# and .NET, with the LLM of your choice.</b><br>
+  <i>Guarding code. Growing intelligence.</i>
+</p>
 
-RibatIQ is a command-line tool that reviews C# code. It combines deterministic static analysis
-(Roslyn) with optional AI analysis by the LLM provider of your choice (OpenAI or Anthropic), and
-reports findings for people (console) and for tools (JSON, CI exit codes).
+RibatIQ is a code review agent for the command line. It reviews your pull requests or your whole
+solution with the AI model you choose (**OpenAI** or **Anthropic** today; providers are pluggable),
+guided by your team's conventions in a `review-rules.md` file. Every AI finding is validated against
+the code the model was actually shown, and deterministic Roslyn analysis runs alongside as a safety
+net. Findings are reported for people (console) and for tools (JSON, CI exit codes).
 
-- **`ribat scan`** analyzes an existing solution, project or directory, with no pull request needed.
-- **`ribat review`** analyzes the changes between two Git revisions and reports only issues on changed lines.
+- **`ribat review`** reviews the changes between two Git revisions, like a pull request, and reports
+  issues on changed lines only.
+- **`ribat scan`** audits an existing solution, project or directory, with no pull request needed.
+
+AI analysis is opt-in: without a provider, RibatIQ runs static analysis only and your code never
+leaves your machine.
 
 > RibatIQ reports likely issues. It does not prove that code is correct, secure or bug-free, and it
 > never modifies your source files.
