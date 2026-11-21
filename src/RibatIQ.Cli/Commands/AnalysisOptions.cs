@@ -14,12 +14,12 @@ internal sealed class AnalysisOptions
 
     public Option<string> Provider { get; } = new("--provider")
     {
-        Description = $"LLM provider for AI analysis: {string.Join(", ", LlmProviders.All)}. Enables AI analysis.",
+        Description = $"Enable AI analysis with this provider: {string.Join(", ", LlmProviders.All)}. Reads OPENAI_API_KEY or ANTHROPIC_API_KEY. Source excerpts are sent to the provider.",
     };
 
     public Option<string> Model { get; } = new("--model")
     {
-        Description = "Model identifier sent to the provider. Defaults to the provider adapter's default.",
+        Description = "Model to use. Defaults: openai gpt-6.2-astra, anthropic claude-opus-5-5.",
     };
 
     public Option<bool> NoAi { get; } = new("--no-ai")
@@ -69,9 +69,8 @@ internal sealed class AnalysisOptions
         Format.AcceptOnlyFromAmong(ConsoleFormat, JsonFormat);
         FailOn.AcceptOnlyFromAmong([.. FailPolicy.AcceptedValues]);
 
-        // Parsed and validated, but hidden from --help until the features behind them exist:
-        // AI providers (--provider, --model) and reporting (--format, --output, --fail-on).
-        foreach (var option in new Option[] { Provider, Model, Format, Output, FailOn })
+        // Parsed and validated, but hidden from --help until reporting exists (--format, --output, --fail-on).
+        foreach (var option in new Option[] { Format, Output, FailOn })
         {
             option.Hidden = true;
         }

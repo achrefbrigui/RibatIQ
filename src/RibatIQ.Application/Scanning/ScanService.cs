@@ -47,6 +47,7 @@ public sealed class ScanService
 
         // Resolve the provider first so missing credentials fail before any work is done.
         var provider = AiProviders.Resolve(settings, _llmProviders);
+        using var providerLifetime = provider as IDisposable;
 
         var startedAt = _timeProvider.GetUtcNow();
 

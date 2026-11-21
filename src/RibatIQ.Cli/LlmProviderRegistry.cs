@@ -26,6 +26,7 @@ internal sealed class LlmProviderRegistry : ILlmProviderFactory
         return new LlmProviderRegistry(new Dictionary<string, Func<string?, ILlmProvider>>(StringComparer.Ordinal)
         {
             [LlmProviders.OpenAi] = model => OpenAiProvider.FromEnvironment(context.GetEnvironmentVariable, model),
+            [LlmProviders.Anthropic] = model => AnthropicProvider.FromEnvironment(context.GetEnvironmentVariable, model),
         });
     }
 
