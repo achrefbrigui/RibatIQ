@@ -52,6 +52,22 @@ public sealed class OutputLimitTests : IDisposable
     }
 
     [Fact]
+    public async Task Git_FileSizes_AreReadInOneBatch_ForNestedAndUnusualPaths()
+    {
+        _repo.WriteFile("src/deep/A.cs", "class A {}\n");
+        _repo.WriteFile("src/My Dir/Café.cs", "class B {}\n\n");
+        _repo.Commit("files");
+
+        var sizes = await new GitCli().GetFileSizesAsync(
+            _repo.Path, "HEAD", ["src/deep/A.cs", "src/My Dir/Café.cs", "src/Missing.cs", "src/deep"], Ct);
+
+        Assert.Equal(11, sizes["src/deep/A.cs"]);
+        Assert.Equal(12, sizes["src/My Dir/Café.cs"]);
+        Assert.Null(sizes["src/Missing.cs"]);
+        Assert.Null(sizes["src/deep"]);
+    }
+
+    [Fact]
     public async Task Git_OutputUnderTheLimit_IsReturned()
     {
         _repo.WriteFile("a.cs", "class A {}\n");
