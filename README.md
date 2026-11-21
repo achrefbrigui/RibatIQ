@@ -44,6 +44,7 @@ dotnet run --project src/RibatIQ.Cli -- --version
 | `src/RibatIQ.Application` | Use cases and ports (LLM provider, Git, discovery, reporting). Depends on Domain only. |
 | `src/RibatIQ.Infrastructure` | Adapters: OpenAI/Anthropic, Git, Roslyn, filesystem. |
 | `src/RibatIQ.Cli` | The `ribat` command: parsing, DI, console output, exit codes. |
+| `tests/RibatIQ.Domain.Tests` | Unit tests for domain validation, fingerprints and result contracts. |
 | `tests/RibatIQ.IntegrationTests` | End-to-end CLI tests and dependency-direction guards. |
 
 ## License
