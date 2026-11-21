@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using RibatIQ.Application.Instructions;
 using RibatIQ.Application.Reporting;
 using RibatIQ.Domain.Findings;
 using RibatIQ.Domain.Results;
@@ -10,7 +11,8 @@ namespace RibatIQ.Infrastructure.Reporting;
 
 /// <summary>
 /// Writes reports as JSON for tools and CI. The document is versioned with <see cref="SchemaVersion"/>;
-/// fields are only added in a compatible way within one version. It never contains source code,
+/// fields are only added in a compatible way within one version. <c>complete</c> is <c>false</c> when a check
+/// was skipped or failed. It never contains source code, project instructions,
 /// prompts or credentials.
 /// </summary>
 public sealed class JsonReportWriter : IReportWriter
@@ -69,6 +71,19 @@ public sealed class JsonReportWriter : IReportWriter
                 summary.Total, summary.Critical, summary.High, summary.Medium, summary.Low, summary.Info,
                 summary.StaticAnalysis, summary.Ai),
             new GateDocument(report.FailOn.ToString(), report.FailingFindings, report.ThresholdExceeded),
+            result.AllChecksCompleted,
+            report.Policy is { } policy
+                ? new PolicyDocument(
+                    policy.Profile,
+                    policy.MinimumSeverity,
+                    [.. policy.EnabledRules.Select(r => r.Value).Order(StringComparer.Ordinal)],
+                    [.. policy.DisabledRules.Select(r => r.Value).Order(StringComparer.Ordinal)],
+                    policy.Categories is { } categories ? [.. categories.Order()] : null,
+                    report.PolicyExcluded)
+                : null,
+            report.Instructions is { } instructions
+                ? new InstructionsDocument(instructions.Status, instructions.Instructions?.Source, instructions.Message)
+                : null,
             result.Checks.Select(c => new CheckDocument(c.CheckId, c.Name, c.Status, c.Reason, c.RuleIds.Select(r => r.Value).ToArray(), result.CountFindings(c))).ToArray(),
             result.Findings.Select(ToDocument).ToArray(),
             result.Warnings.ToArray());
@@ -104,12 +119,27 @@ public sealed class JsonReportWriter : IReportWriter
         StatisticsDocument Statistics,
         SummaryDocument Summary,
         GateDocument Gate,
+        bool Complete,
+        PolicyDocument? Policy,
+        InstructionsDocument? Instructions,
         CheckDocument[] Checks,
         FindingDocument[] Findings,
         string[] Warnings);
 
     /// <summary>Outcome of the failure threshold: <c>failOn</c> is <c>none</c> or a severity.</summary>
     internal sealed record GateDocument(string FailOn, int FailingFindings, bool ThresholdExceeded);
+
+    /// <summary>The effective review policy; <c>categories</c> is <c>null</c> when every category is selected.</summary>
+    internal sealed record PolicyDocument(
+        string Profile,
+        FindingSeverity MinimumSeverity,
+        string[] EnabledRules,
+        string[] DisabledRules,
+        FindingCategory[]? Categories,
+        int FindingsExcluded);
+
+    /// <summary>Project instructions: what happened and where they came from. Their text is never included.</summary>
+    internal sealed record InstructionsDocument(InstructionsStatus Status, string? Source, string Message);
 
     /// <summary>One check: <c>completed</c>, <c>skipped</c> or <c>failed</c>, with the findings it reported.</summary>
     internal sealed record CheckDocument(string Id, string Name, CheckStatus Status, string? Reason, string[] Rules, int Findings);

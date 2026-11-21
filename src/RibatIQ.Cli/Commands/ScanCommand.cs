@@ -62,7 +62,12 @@ internal static class ScanCommand
                         outcome.Coverage,
                         new ReportStatistics(outcome.FileCount, ProjectCount: outcome.ProjectCount),
                         outcome.Ai,
-                        settings.FailOn);
+                        settings.FailOn)
+                    {
+                        Policy = outcome.Policy,
+                        PolicyExcluded = outcome.PolicyExcluded,
+                        Instructions = outcome.Instructions,
+                    };
 
                     return await options.PublishAsync(report, parseResult, context, cancellationToken).ConfigureAwait(false);
                 },
