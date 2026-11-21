@@ -77,7 +77,13 @@ public sealed class RoslynStaticAnalyzer : IStaticAnalyzer
                     concurrentAnalysis: true,
                     logAnalyzerExecutionTime: false));
 
-            foreach (var diagnostic in await withAnalyzers.GetAnalyzerDiagnosticsAsync(cancellationToken).ConfigureAwait(false))
+            // Concurrent analysis reports diagnostics in no particular order; sort them so reports are stable.
+            var diagnostics = (await withAnalyzers.GetAnalyzerDiagnosticsAsync(cancellationToken).ConfigureAwait(false))
+                .OrderBy(d => d.Location.SourceTree?.FilePath, StringComparer.Ordinal)
+                .ThenBy(d => d.Location.SourceSpan.Start)
+                .ThenBy(d => d.Id, StringComparer.Ordinal);
+
+            foreach (var diagnostic in diagnostics)
             {
                 if (RibatRules.CatalogueRules.TryGetValue(diagnostic.Id, out var ruleId))
                 {
