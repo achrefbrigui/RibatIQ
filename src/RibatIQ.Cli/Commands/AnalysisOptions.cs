@@ -1,5 +1,6 @@
 using System.CommandLine;
 
+using RibatIQ.Application;
 using RibatIQ.Application.Configuration;
 using RibatIQ.Cli.Configuration;
 
@@ -67,6 +68,13 @@ internal sealed class AnalysisOptions
         Provider.AcceptOnlyFromAmong([.. LlmProviders.All]);
         Format.AcceptOnlyFromAmong(ConsoleFormat, JsonFormat);
         FailOn.AcceptOnlyFromAmong([.. FailPolicy.AcceptedValues]);
+
+        // Parsed and validated, but hidden from --help until the features behind them exist:
+        // AI providers (--provider, --model) and reporting (--format, --output, --fail-on).
+        foreach (var option in new Option[] { Provider, Model, Format, Output, FailOn })
+        {
+            option.Hidden = true;
+        }
     }
 
     public void AddTo(Command command)
@@ -152,7 +160,39 @@ internal sealed class AnalysisOptions
         }
 
         await WriteVerboseAsync(parseResult, context, settings).ConfigureAwait(false);
-        return await execute(settings).ConfigureAwait(false);
+        await WriteNotYetAppliedWarningsAsync(parseResult, context, settings).ConfigureAwait(false);
+
+        try
+        {
+            return await execute(settings).ConfigureAwait(false);
+        }
+        catch (InvalidInputException ex)
+        {
+            await context.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+            return ExitCodes.InvalidUsage;
+        }
+        catch (OperationFailedException ex)
+        {
+            await context.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
+            return ExitCodes.OperationalFailure;
+        }
+    }
+
+    /// <summary>Reporting settings are accepted but not applied yet; say so instead of ignoring them silently.</summary>
+    private async Task WriteNotYetAppliedWarningsAsync(ParseResult parseResult, CliContext context, RibatSettings settings)
+    {
+        // --format has a default value, which yields an implicit result; only warn for explicit use.
+        if (parseResult.GetResult(Format) is { Implicit: false } || parseResult.GetResult(Output) is { Implicit: false })
+        {
+            await context.Error.WriteLineAsync(
+                "Warning: --format and --output are not applied yet; the report is written to the console.").ConfigureAwait(false);
+        }
+
+        if (settings.FailOn.Threshold is not null)
+        {
+            await context.Error.WriteLineAsync(
+                $"Warning: the fail-on threshold ({settings.FailOn}) is not applied yet; findings do not change the exit code.").ConfigureAwait(false);
+        }
     }
 
     /// <summary>Writes the effective settings to standard error when <c>--verbose</c> is set.</summary>

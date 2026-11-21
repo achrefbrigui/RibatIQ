@@ -1,6 +1,10 @@
 using System.CommandLine;
+using System.Globalization;
 
 using RibatIQ.Application.Scanning;
+using RibatIQ.Cli.Output;
+using RibatIQ.Infrastructure.Discovery;
+using RibatIQ.Infrastructure.Roslyn;
 
 namespace RibatIQ.Cli.Commands;
 
@@ -16,11 +20,9 @@ internal static class ScanCommand
             Description = "Solution (.sln, .slnx), project (.csproj) or directory to scan.",
         };
 
-        var command = new Command("scan", "Scan a .NET solution, project or directory.")
-        {
-            // Hidden until the analysis engine is wired in, so --help only lists working commands.
-            Hidden = true,
-        };
+        var command = new Command(
+            "scan",
+            "Scan a .NET solution, project or directory with static analysis. Source files are only read, never modified.");
         command.Arguments.Add(pathArgument);
 
         var options = new AnalysisOptions();
@@ -39,7 +41,23 @@ internal static class ScanCommand
             return await options.RunWithSettingsAsync(
                 parseResult,
                 context,
-                _ => CommandResults.EngineNotAvailableAsync(context, "scan", request.TargetPath),
+                async settings =>
+                {
+                    var service = new ScanService(
+                        new FileSystemSourceDiscovery(),
+                        new RoslynStaticAnalyzer(),
+                        TimeProvider.System,
+                        ToolInfo.Version);
+
+                    var outcome = await service.RunAsync(request, settings, cancellationToken).ConfigureAwait(false);
+
+                    var scope = string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Analyzed {outcome.FileCount} C# file(s) in {outcome.ProjectCount} project(s).");
+                    await ConsoleSummaryWriter.WriteAsync(context.Output, outcome.Result, scope, outcome.Coverage).ConfigureAwait(false);
+
+                    return ExitCodes.Success;
+                },
                 cancellationToken).ConfigureAwait(false);
         });
 
