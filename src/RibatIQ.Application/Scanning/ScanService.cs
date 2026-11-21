@@ -96,12 +96,17 @@ public sealed class ScanService
         {
             checks.Add(ReviewPipeline.AiSkipped("AI analysis is not enabled; choose a provider to enable it."));
         }
-        else
+        else if (ReviewPipeline.EnabledAiRules(_catalog, policy) is { Length: > 0 } aiRules)
         {
-            ai = await _aiAnalyzer.AnalyzeScanAsync(provider, discovery.Documents, cancellationToken).ConfigureAwait(false);
+            ai = await _aiAnalyzer.AnalyzeScanAsync(provider, discovery.Documents, aiRules, policy.Instructions, cancellationToken)
+                .ConfigureAwait(false);
             findings.AddRange(ai.Findings);
             warnings.AddRange(ai.Warnings);
-            checks.Add(ReviewPipeline.AiRan(ai.FilesSent, []));
+            checks.Add(ReviewPipeline.AiRan(ai.FilesSent, aiRules.Select(r => r.Id)));
+        }
+        else
+        {
+            checks.Add(ReviewPipeline.AiSkipped(ReviewPipeline.NoAiRuleReason));
         }
 
         var outcome = ReviewPipeline.Normalize(findings, policy);

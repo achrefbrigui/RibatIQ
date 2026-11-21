@@ -35,7 +35,9 @@ public sealed class AiPipelineTests
 
         var request = Assert.Single(provider.Requests);
         Assert.Contains("line 20", request.UserPrompt, StringComparison.Ordinal);
-        Assert.Equal(AiPromptBuilder.ResponseSchema, request.ResponseSchema);
+        Assert.Equal(AiPromptBuilder.SchemaName, request.ResponseSchema.Name);
+        Assert.Contains("\"CORRECTNESS.NULL_REFERENCE\"", request.ResponseSchema.SchemaJson, StringComparison.Ordinal);
+        Assert.Contains("\"UNCLASSIFIED\"", request.ResponseSchema.SchemaJson, StringComparison.Ordinal);
 
         var finding = Assert.Single(result.Findings);
         Assert.Equal("Null dereference", finding.Title);

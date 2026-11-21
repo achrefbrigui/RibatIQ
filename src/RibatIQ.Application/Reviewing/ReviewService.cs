@@ -142,13 +142,17 @@ public sealed class ReviewService
         {
             checks.Add(ReviewPipeline.AiSkipped("AI analysis is not enabled; choose a provider to enable it."));
         }
-        else
+        else if (ReviewPipeline.EnabledAiRules(_catalog, policy) is { Length: > 0 } aiRules)
         {
-            ai = await _aiAnalyzer.AnalyzeReviewAsync(provider, documents, changes, request.Range, cancellationToken)
-                .ConfigureAwait(false);
+            ai = await _aiAnalyzer.AnalyzeReviewAsync(
+                provider, documents, changes, request.Range, aiRules, policy.Instructions, cancellationToken).ConfigureAwait(false);
             findings.AddRange(ai.Findings);
             warnings.AddRange(ai.Warnings);
-            checks.Add(ReviewPipeline.AiRan(ai.FilesSent, []));
+            checks.Add(ReviewPipeline.AiRan(ai.FilesSent, aiRules.Select(r => r.Id)));
+        }
+        else
+        {
+            checks.Add(ReviewPipeline.AiSkipped(ReviewPipeline.NoAiRuleReason));
         }
 
         // AI findings were already checked against the changed lines; validating them again is a cheap safety net.

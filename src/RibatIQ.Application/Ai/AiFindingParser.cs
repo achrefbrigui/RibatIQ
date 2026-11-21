@@ -1,6 +1,8 @@
 using System.Text.Json;
 
+using RibatIQ.Application.Rules;
 using RibatIQ.Domain.Findings;
+using RibatIQ.Domain.Rules;
 
 namespace RibatIQ.Application.Ai;
 
@@ -28,12 +30,23 @@ public static class AiFindingParser
     private static readonly JsonDocumentOptions DocumentOptions = new() { MaxDepth = 16 };
 
     /// <exception cref="LlmProviderException">The response is not a JSON object with a <c>findings</c> array.</exception>
-    public static AiParseResult Parse(string responseText, string source, AiContext context, AiOptions options)
+    /// <param name="responseText">Raw model output.</param>
+    /// <param name="source">Provider ID recorded on each finding.</param>
+    /// <param name="context">What the model was shown.</param>
+    /// <param name="options">Limits.</param>
+    /// <param name="rules">
+    /// Rules the model was asked to apply. A finding's <c>ruleId</c> must be one of them or
+    /// <see cref="AiPromptBuilder.UnclassifiedRuleId"/> (or absent); any other value rejects the finding.
+    /// </param>
+    public static AiParseResult Parse(
+        string responseText, string source, AiContext context, AiOptions options, IReadOnlyList<RuleDefinition>? rules = null)
     {
         ArgumentNullException.ThrowIfNull(responseText);
         ArgumentException.ThrowIfNullOrWhiteSpace(source);
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(options);
+
+        var allowed = (rules ?? []).ToDictionary(r => r.Id);
 
         JsonDocument document;
         try
@@ -59,7 +72,7 @@ public static class AiFindingParser
 
             foreach (var item in items.EnumerateArray())
             {
-                if (TryMap(item, source, context) is { } finding)
+                if (TryMap(item, source, context, allowed) is { } finding)
                 {
                     findings.Add(finding);
                 }
@@ -74,15 +87,21 @@ public static class AiFindingParser
         }
     }
 
-    private static ReviewFinding? TryMap(JsonElement item, string source, AiContext context)
+    private static ReviewFinding? TryMap(JsonElement item, string source, AiContext context, Dictionary<ReviewRuleId, RuleDefinition> allowed)
     {
         if (item.ValueKind != JsonValueKind.Object
             || GetString(item, "title") is not { } title
             || GetString(item, "description") is not { } description
             || ParseSeverity(GetString(item, "severity")) is not { } severity
-            || ParseCategory(GetString(item, "category")) is not { } category
             || GetString(item, "file") is not { } file
-            || GetInt(item, "startLine") is not { } startLine)
+            || GetInt(item, "startLine") is not { } startLine
+            || !TryGetRule(item, allowed, out var rule))
+        {
+            return null;
+        }
+
+        // A classified finding takes its category from the catalogue; only unclassified ones use the model's.
+        if ((rule?.Category ?? ParseCategory(GetString(item, "category"))) is not { } category)
         {
             return null;
         }
@@ -134,13 +153,50 @@ public static class AiFindingParser
                 GetConfidence(item),
                 FindingOrigin.Ai,
                 source,
-                toolRuleId: null);
+                toolRuleId: null,
+                ruleId: rule?.Id,
+                evidence: Truncate(GetString(item, "evidence"), ReviewFinding.MaxEvidenceLength));
         }
         catch (ArgumentException)
         {
             return null;
         }
     }
+
+    /// <summary>
+    /// Reads <c>ruleId</c>: absent, null or <see cref="AiPromptBuilder.UnclassifiedRuleId"/> means unclassified;
+    /// otherwise it must be one of the rules the model was given.
+    /// </summary>
+    private static bool TryGetRule(JsonElement item, Dictionary<ReviewRuleId, RuleDefinition> allowed, out RuleDefinition? rule)
+    {
+        rule = null;
+        if (!item.TryGetProperty("ruleId", out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (value.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        var text = value.GetString();
+        if (string.Equals(text, AiPromptBuilder.UnclassifiedRuleId, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (ReviewRuleId.TryParse(text, out var id) && allowed.TryGetValue(id, out var definition))
+        {
+            rule = definition;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string? Truncate(string? text, int maxLength) =>
+        text is { Length: > 0 } && text.Trim().Length > maxLength ? text.Trim()[..maxLength] : text;
 
     private static string StripCodeFence(string text)
     {

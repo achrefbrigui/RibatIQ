@@ -53,6 +53,12 @@ internal static class ReviewPipeline
             : CheckResult.Completed(StaticCheckId, "Static analysis", enabled);
     }
 
+    /// <summary>AI-review rules the policy enables, in catalogue order.</summary>
+    public static RuleDefinition[] EnabledAiRules(RuleCatalog catalog, ReviewPolicy policy) =>
+        [.. catalog.RulesDetectedBy(DetectionMethod.AiReview).Where(r => policy.IsEnabled(r.Id))];
+
+    public const string NoAiRuleReason = "No AI-review rule is enabled by the policy.";
+
     /// <summary>The AI check when it does not run.</summary>
     public static CheckResult AiSkipped(string reason, IEnumerable<ReviewRuleId>? rules = null) =>
         CheckResult.Skipped(AiCheckId, "AI review", reason, rules);

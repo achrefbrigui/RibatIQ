@@ -1,8 +1,10 @@
 using System.Globalization;
 
 using RibatIQ.Application.Reviewing;
+using RibatIQ.Application.Rules;
 using RibatIQ.Application.Sources;
 using RibatIQ.Domain.Findings;
+using RibatIQ.Domain.Policies;
 
 namespace RibatIQ.Application.Ai;
 
@@ -37,26 +39,51 @@ public sealed class AiAnalyzer
         _prompts = prompts ?? new AiPromptBuilder();
     }
 
+    /// <summary>Scans with the AI-review rules enabled by default and no project instructions.</summary>
     public Task<AiAnalysisResult> AnalyzeScanAsync(
-        ILlmProvider provider, IReadOnlyList<SourceDocument> documents, CancellationToken cancellationToken)
+        ILlmProvider provider, IReadOnlyList<SourceDocument> documents, CancellationToken cancellationToken) =>
+        AnalyzeScanAsync(provider, documents, DefaultRules(), instructions: null, cancellationToken);
+
+    /// <summary>Scans <paramref name="documents"/> for <paramref name="rules"/>, with optional project instructions.</summary>
+    public Task<AiAnalysisResult> AnalyzeScanAsync(
+        ILlmProvider provider,
+        IReadOnlyList<SourceDocument> documents,
+        IReadOnlyList<RuleDefinition> rules,
+        ProjectInstructions? instructions,
+        CancellationToken cancellationToken)
     {
         var context = AiContextBuilder.ForScan(documents, _options);
-        return RunAsync(provider, context, _prompts.BuildScan(context, _options), cancellationToken);
+        return RunAsync(provider, context, rules, _prompts.BuildScan(context, _options, rules, instructions), cancellationToken);
     }
 
+    /// <summary>Reviews with the AI-review rules enabled by default and no project instructions.</summary>
     public Task<AiAnalysisResult> AnalyzeReviewAsync(
         ILlmProvider provider,
         IReadOnlyList<SourceDocument> documents,
         IReadOnlyList<FileChange> changes,
         string range,
+        CancellationToken cancellationToken) =>
+        AnalyzeReviewAsync(provider, documents, changes, range, DefaultRules(), instructions: null, cancellationToken);
+
+    /// <summary>Reviews the changed lines for <paramref name="rules"/>, with optional project instructions.</summary>
+    public Task<AiAnalysisResult> AnalyzeReviewAsync(
+        ILlmProvider provider,
+        IReadOnlyList<SourceDocument> documents,
+        IReadOnlyList<FileChange> changes,
+        string range,
+        IReadOnlyList<RuleDefinition> rules,
+        ProjectInstructions? instructions,
         CancellationToken cancellationToken)
     {
         var context = AiContextBuilder.ForReview(documents, changes, _options);
-        return RunAsync(provider, context, _prompts.BuildReview(context, range, _options), cancellationToken);
+        return RunAsync(provider, context, rules, _prompts.BuildReview(context, range, _options, rules, instructions), cancellationToken);
     }
 
+    private static RuleDefinition[] DefaultRules() =>
+        [.. RuleCatalog.Default.RulesDetectedBy(DetectionMethod.AiReview).Where(r => r.EnabledByDefault)];
+
     private async Task<AiAnalysisResult> RunAsync(
-        ILlmProvider provider, AiContext context, LlmRequest request, CancellationToken cancellationToken)
+        ILlmProvider provider, AiContext context, IReadOnlyList<RuleDefinition> rules, LlmRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(provider);
 
@@ -72,7 +99,7 @@ public sealed class AiAnalyzer
         try
         {
             response = await provider.GenerateAsync(request, cancellationToken).ConfigureAwait(false);
-            parsed = AiFindingParser.Parse(response.Text, provider.ProviderId, context, _options);
+            parsed = AiFindingParser.Parse(response.Text, provider.ProviderId, context, _options, rules);
         }
         catch (LlmProviderException ex)
         {
