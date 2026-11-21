@@ -27,6 +27,23 @@ public sealed class ReportEndToEndTests : IDisposable
     }
 
     [Fact]
+    public async Task Scan_Json_RecordsWhichChecksRanAndWhichDidNot()
+    {
+        var result = await RunAsync("scan", "SampleSolution.sln", "--format", "json", "--no-ai");
+
+        using var json = JsonDocument.Parse(result.Output);
+        var checks = json.RootElement.GetProperty("checks").EnumerateArray().ToDictionary(c => c.GetProperty("id").GetString()!);
+
+        Assert.Equal("completed", checks["static-analysis"].GetProperty("status").GetString());
+        Assert.Equal(5, checks["static-analysis"].GetProperty("rules").GetArrayLength());
+        Assert.Equal(4, checks["static-analysis"].GetProperty("findings").GetInt32());
+
+        Assert.Equal("skipped", checks["ai-review"].GetProperty("status").GetString());
+        Assert.Contains("not enabled", checks["ai-review"].GetProperty("reason").GetString(), StringComparison.Ordinal);
+        Assert.Equal(0, checks["ai-review"].GetProperty("findings").GetInt32());
+    }
+
+    [Fact]
     public async Task Scan_Json_NeverContainsSourceCodeOrSecretValues()
     {
         var result = await RunAsync("scan", ".", "--format", "json");
