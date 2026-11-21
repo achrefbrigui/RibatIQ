@@ -47,14 +47,15 @@ internal static class ScanCommand
                         new FileSystemSourceDiscovery(),
                         new RoslynStaticAnalyzer(),
                         TimeProvider.System,
-                        ToolInfo.Version);
+                        ToolInfo.Version,
+                        context.ResolveLlmProviders());
 
                     var outcome = await service.RunAsync(request, settings, cancellationToken).ConfigureAwait(false);
 
                     var scope = string.Create(
                         CultureInfo.InvariantCulture,
                         $"Analyzed {outcome.FileCount} C# file(s) in {outcome.ProjectCount} project(s).");
-                    await ConsoleSummaryWriter.WriteAsync(context.Output, outcome.Result, scope, outcome.Coverage).ConfigureAwait(false);
+                    await ConsoleSummaryWriter.WriteAsync(context.Output, outcome.Result, scope, outcome.Coverage, outcome.Ai).ConfigureAwait(false);
 
                     return ExitCodes.Success;
                 },

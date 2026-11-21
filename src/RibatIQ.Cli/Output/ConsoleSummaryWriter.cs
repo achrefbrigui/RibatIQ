@@ -1,5 +1,6 @@
 using System.Globalization;
 
+using RibatIQ.Application.Ai;
 using RibatIQ.Domain.Findings;
 using RibatIQ.Domain.Results;
 
@@ -13,7 +14,8 @@ internal static class ConsoleSummaryWriter
 {
     public const string Disclaimer = "RibatIQ reports likely issues; it does not prove that code is correct or secure.";
 
-    public static async Task WriteAsync(TextWriter writer, AnalysisResult result, string scopeLine, string coverage)
+    public static async Task WriteAsync(
+        TextWriter writer, AnalysisResult result, string scopeLine, string coverage, AiAnalysisResult? ai = null)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);
@@ -22,6 +24,17 @@ internal static class ConsoleSummaryWriter
         await writer.WriteLineAsync(string.Create(
             CultureInfo.InvariantCulture,
             $"{scopeLine} Duration: {result.Duration.TotalSeconds:0.0}s. AI analysis: {(result.Metadata.AiEnabled ? "enabled" : "disabled")}.")).ConfigureAwait(false);
+
+        if (ai is not null)
+        {
+            var tokens = ai.Usage is { } usage
+                ? string.Create(CultureInfo.InvariantCulture, $", {usage.InputTokens} input / {usage.OutputTokens} output tokens")
+                : string.Empty;
+            await writer.WriteLineAsync(string.Create(
+                CultureInfo.InvariantCulture,
+                $"AI: {ai.ProviderId} ({ai.Model}), {ai.FilesSent} file(s) sent{tokens}. AI findings are heuristic; verify them before acting.")).ConfigureAwait(false);
+        }
+
         await writer.WriteLineAsync().ConfigureAwait(false);
 
         if (result.Findings.Count == 0)

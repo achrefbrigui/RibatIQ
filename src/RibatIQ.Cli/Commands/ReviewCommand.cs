@@ -47,7 +47,12 @@ internal static class ReviewCommand
                 context,
                 async settings =>
                 {
-                    var service = new ReviewService(new GitCli(), new RoslynStaticAnalyzer(), TimeProvider.System, ToolInfo.Version);
+                    var service = new ReviewService(
+                        new GitCli(),
+                        new RoslynStaticAnalyzer(),
+                        TimeProvider.System,
+                        ToolInfo.Version,
+                        llmProviders: context.ResolveLlmProviders());
 
                     var outcome = await service.RunAsync(request, settings, context.CurrentDirectory, cancellationToken)
                         .ConfigureAwait(false);
@@ -56,7 +61,7 @@ internal static class ReviewCommand
                         CultureInfo.InvariantCulture,
                         $"Reviewed {outcome.ReviewedFileCount} changed C# file(s) of {outcome.ChangedFileCount} changed file(s); " +
                         $"{outcome.FindingsOutsideChanges} finding(s) outside changed lines ignored.");
-                    await ConsoleSummaryWriter.WriteAsync(context.Output, outcome.Result, scope, outcome.Coverage).ConfigureAwait(false);
+                    await ConsoleSummaryWriter.WriteAsync(context.Output, outcome.Result, scope, outcome.Coverage, outcome.Ai).ConfigureAwait(false);
 
                     return ExitCodes.Success;
                 },

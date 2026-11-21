@@ -1,3 +1,5 @@
+using RibatIQ.Application.Ai;
+
 namespace RibatIQ.Cli;
 
 /// <summary>
@@ -10,9 +12,14 @@ internal sealed record CliContext(
     string CurrentDirectory,
     Func<string, string?> GetEnvironmentVariable)
 {
+    /// <summary>LLM providers; <see langword="null"/> uses the adapters compiled into this build.</summary>
+    public ILlmProviderFactory? LlmProviders { get; init; }
+
     public static CliContext FromProcess() => new(
         Console.Out,
         Console.Error,
         Environment.CurrentDirectory,
         Environment.GetEnvironmentVariable);
+
+    public ILlmProviderFactory ResolveLlmProviders() => LlmProviders ?? LlmProviderRegistry.CreateDefault(this);
 }
