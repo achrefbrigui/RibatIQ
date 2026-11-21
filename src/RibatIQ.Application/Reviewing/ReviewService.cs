@@ -3,6 +3,7 @@ using System.Globalization;
 using RibatIQ.Application.Ai;
 using RibatIQ.Application.Analysis;
 using RibatIQ.Application.Configuration;
+using RibatIQ.Application.Dependencies;
 using RibatIQ.Application.Instructions;
 using RibatIQ.Application.Rules;
 using RibatIQ.Application.Sources;
@@ -154,6 +155,10 @@ public sealed class ReviewService
         {
             checks.Add(ReviewPipeline.AiSkipped(ReviewPipeline.NoAiRuleReason));
         }
+
+        checks.Add(DependencyAudit.Skipped(settings.AuditDependencies
+            ? "The dependency audit runs with scan only."
+            : "Not requested."));
 
         // AI findings were already checked against the changed lines; validating them again is a cheap safety net.
         var (onChangedLines, dropped) = DiffLocationValidator.KeepChangedLines(findings, changes);

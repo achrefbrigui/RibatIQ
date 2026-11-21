@@ -47,6 +47,15 @@
       "description": "A password, token, API key or similar secret is assigned a string literal in source code."
     },
     {
+      "id": "DEPENDENCY.NUGET.VULNERABLE",
+      "title": "Vulnerable NuGet package",
+      "category": "dependencies",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "dependency-audit",
+      "description": "A direct or transitive NuGet package has a known vulnerability according to the configured package sources (dotnet list package --vulnerable)."
+    },
+    {
       "id": "CORRECTNESS.NULL_REFERENCE",
       "title": "Possible null reference",
       "category": "correctness",

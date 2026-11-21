@@ -1,6 +1,7 @@
 using RibatIQ.Application.Ai;
 using RibatIQ.Application.Analysis;
 using RibatIQ.Application.Configuration;
+using RibatIQ.Application.Dependencies;
 using RibatIQ.Application.Instructions;
 using RibatIQ.Application.Rules;
 using RibatIQ.Application.Sources;
@@ -33,7 +34,8 @@ public sealed class ScanService
         ILlmProviderFactory? llmProviders = null,
         AiAnalyzer? aiAnalyzer = null,
         RuleCatalog? catalog = null,
-        IInstructionsReader? instructions = null)
+        IInstructionsReader? instructions = null,
+        IDependencyAuditor? dependencies = null)
     {
         ArgumentNullException.ThrowIfNull(discovery);
         ArgumentNullException.ThrowIfNull(analyzer);
@@ -48,7 +50,10 @@ public sealed class ScanService
         _aiAnalyzer = aiAnalyzer ?? new AiAnalyzer();
         _catalog = catalog ?? RuleCatalog.Default;
         _instructions = instructions;
+        _dependencies = dependencies;
     }
+
+    private readonly IDependencyAuditor? _dependencies;
 
     /// <exception cref="InvalidInputException">The target or an explicit instructions file cannot be read.</exception>
     /// <exception cref="Configuration.ConfigurationException">Unknown profile or rule, or AI credentials are missing.</exception>
@@ -107,6 +112,30 @@ public sealed class ScanService
         else
         {
             checks.Add(ReviewPipeline.AiSkipped(ReviewPipeline.NoAiRuleReason));
+        }
+
+        if (!settings.AuditDependencies)
+        {
+            checks.Add(DependencyAudit.Skipped("Not requested."));
+        }
+        else if (!policy.IsEnabled(DependencyAudit.VulnerablePackageRule))
+        {
+            checks.Add(DependencyAudit.Skipped("The dependency rule is disabled by the policy."));
+        }
+        else if (_dependencies is null)
+        {
+            checks.Add(DependencyAudit.Skipped("Dependency auditing is not available in this configuration."));
+        }
+        else
+        {
+            var targets = File.Exists(request.TargetPath)
+                ? [request.TargetPath]
+                : discovery.Projects.Select(p => Path.GetFullPath(Path.Combine(discovery.RootDirectory, p.Path))).ToArray();
+
+            var audit = await _dependencies.AuditAsync(discovery.RootDirectory, targets, cancellationToken).ConfigureAwait(false);
+            findings.AddRange(audit.Findings);
+            warnings.AddRange(audit.Warnings);
+            checks.Add(audit.Check);
         }
 
         var outcome = ReviewPipeline.Normalize(findings, policy);

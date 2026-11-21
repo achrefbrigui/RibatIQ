@@ -3,6 +3,7 @@ using System.CommandLine;
 using RibatIQ.Application.Reporting;
 using RibatIQ.Application.Scanning;
 using RibatIQ.Cli.Output;
+using RibatIQ.Infrastructure.Dependencies;
 using RibatIQ.Infrastructure.Discovery;
 using RibatIQ.Infrastructure.Instructions;
 using RibatIQ.Infrastructure.Roslyn;
@@ -50,7 +51,8 @@ internal static class ScanCommand
                         TimeProvider.System,
                         ToolInfo.Version,
                         context.ResolveLlmProviders(),
-                        instructions: new FileSystemInstructionsSource());
+                        instructions: new FileSystemInstructionsSource(),
+                        dependencies: new DotnetListPackageAuditor());
 
                     var outcome = await service.RunAsync(request, settings, cancellationToken).ConfigureAwait(false);
 

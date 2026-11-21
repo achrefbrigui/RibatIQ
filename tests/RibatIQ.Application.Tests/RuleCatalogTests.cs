@@ -11,7 +11,7 @@ public sealed class RuleCatalogTests
     {
         var catalog = RuleCatalog.Default;
 
-        Assert.Equal(40, catalog.Rules.Count);
+        Assert.Equal(41, catalog.Rules.Count);
         Assert.Equal(["default", "security", "performance"], catalog.Profiles.Select(p => p.Name));
         Assert.Same(catalog, RuleCatalog.Default);
     }
@@ -36,8 +36,8 @@ public sealed class RuleCatalogTests
     {
         var detections = RuleCatalog.Default.Rules.Select(r => r.Detection).Distinct().Order();
 
-        // Dependency audit, test, coverage and configuration analysis have no detector yet: no rule may claim them.
-        Assert.Equal([DetectionMethod.StaticAnalysis, DetectionMethod.AiReview], detections);
+        // Test, coverage and configuration analysis have no detector yet: no rule may claim them.
+        Assert.Equal([DetectionMethod.StaticAnalysis, DetectionMethod.DependencyAudit, DetectionMethod.AiReview], detections);
     }
 
     [Fact]
@@ -68,7 +68,9 @@ public sealed class RuleCatalogTests
         Assert.False(naming.EnabledByDefault);
         Assert.Equal(DetectionMethod.AiReview, naming.Detection);
 
-        Assert.Null(catalog.Find(ReviewRuleId.Parse("DEPENDENCY.NUGET.VULNERABLE")));
+        var vulnerable = catalog.Get(ReviewRuleId.Parse("DEPENDENCY.NUGET.VULNERABLE"));
+        Assert.Equal(DetectionMethod.DependencyAudit, vulnerable.Detection);
+        Assert.Equal(FindingCategory.Dependencies, vulnerable.Category);
         Assert.Throws<KeyNotFoundException>(() => catalog.Get(ReviewRuleId.Parse("NOT.A_RULE")));
     }
 
