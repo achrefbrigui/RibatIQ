@@ -1,4 +1,5 @@
 using RibatIQ.Domain.Findings;
+using RibatIQ.Domain.Rules;
 
 namespace RibatIQ.Domain.Tests;
 
@@ -104,6 +105,60 @@ public sealed class ReviewFindingTests
         Assert.Throws<ArgumentException>(() => new ReviewFinding(
             id, "Title", "Description", FindingSeverity.Low, FindingCategory.CleanCode, "a.cs",
             null, null, null, null, FindingOrigin.StaticAnalysis, "roslyn", null));
+
+    [Fact]
+    public void Create_DeterministicFindingWithConfidence_Throws() =>
+        Assert.Throws<ArgumentException>(() => TestFindings.Create(confidence: 0.9, origin: FindingOrigin.StaticAnalysis));
+
+    [Fact]
+    public void Create_KeepsCatalogueRuleToolRuleAndEvidenceApart()
+    {
+        var rule = ReviewRuleId.Parse("CSHARP.SYNTAX.ERROR");
+
+        var finding = TestFindings.Create(toolRuleId: " CS1026 ", ruleId: rule, evidence: "  ')' expected after the parameter list.  ");
+
+        Assert.Equal(rule, finding.RuleId);
+        Assert.Equal("CS1026", finding.ToolRuleId);
+        Assert.Equal("')' expected after the parameter list.", finding.Evidence);
+    }
+
+    [Fact]
+    public void Create_BlankEvidence_IsAbsent_AndOverlongEvidenceIsRejected()
+    {
+        Assert.Null(TestFindings.Create(evidence: "   ").Evidence);
+        Assert.Throws<ArgumentException>(() => TestFindings.Create(evidence: new string('e', ReviewFinding.MaxEvidenceLength + 1)));
+    }
+
+    [Fact]
+    public void Categories_MatchTheReviewAreas()
+    {
+        Assert.Equal(
+            ["Correctness", "Performance", "Security", "Dependencies", "BestPractices", "CleanCode", "Architecture", "Testing", "ProductionReadiness"],
+            Enum.GetNames<FindingCategory>());
+    }
+
+    [Fact]
+    public void Severities_AreOrderedForThresholds()
+    {
+        Assert.Equal(
+            [FindingSeverity.Info, FindingSeverity.Low, FindingSeverity.Medium, FindingSeverity.High, FindingSeverity.Critical],
+            Enum.GetValues<FindingSeverity>().Order());
+        Assert.True(FindingSeverity.Critical > FindingSeverity.High);
+    }
+
+    [Fact]
+    public void Constructor_WithExistingId_PreservesEveryField()
+    {
+        var original = TestFindings.Create(
+            confidence: 0.6, toolRuleId: null, ruleId: ReviewRuleId.Parse("DOTNET.DISPOSAL.RESOURCE_LEAK"), evidence: "Stream created without using.");
+
+        var roundTripped = new ReviewFinding(
+            original.Id, original.Title, original.Description, original.Severity, original.Category,
+            original.FilePath, original.StartLine, original.EndLine, original.SuggestedFix,
+            original.Confidence, original.Origin, original.Source, original.ToolRuleId, original.RuleId, original.Evidence);
+
+        Assert.Equal(original, roundTripped);
+    }
 
     [Fact]
     public void Constructor_WithExistingId_PreservesIt()
