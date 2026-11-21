@@ -13,7 +13,9 @@ namespace RibatIQ.Infrastructure.Llm;
 /// <summary>Options for <see cref="AnthropicProvider"/>, mainly for tests and proxies.</summary>
 public sealed record AnthropicProviderOptions
 {
-    /// <summary>API base address; <see langword="null"/> for the official endpoint.</summary>
+    public const string OfficialBaseUrl = "https://api.anthropic.com";
+
+    /// <summary>API base address; <see langword="null"/> for <see cref="OfficialBaseUrl"/>. Environment variables are not consulted.</summary>
     public string? BaseUrl { get; init; }
 
     /// <summary>Per-request timeout.</summary>
@@ -58,9 +60,12 @@ public sealed class AnthropicProvider : ILlmProvider, IDisposable
         _apiKey = apiKey;
         Model = string.IsNullOrWhiteSpace(model) ? DefaultModel : model.Trim();
 
+        // Pin the endpoint and the credential: where source code is sent must not change because of
+        // ambient variables (such as ANTHROPIC_BASE_URL) or profiles RibatIQ does not control.
         _client = new AnthropicClient
         {
             ApiKey = apiKey,
+            BaseUrl = options.BaseUrl ?? AnthropicProviderOptions.OfficialBaseUrl,
             Timeout = options.Timeout,
         };
 
@@ -74,10 +79,6 @@ public sealed class AnthropicProvider : ILlmProvider, IDisposable
             _client = (AnthropicClient)_client.WithOptions(o => o with { HttpClient = options.HttpClient });
         }
 
-        if (options.BaseUrl is not null)
-        {
-            _client = (AnthropicClient)_client.WithOptions(o => o with { BaseUrl = options.BaseUrl });
-        }
     }
 
     public string ProviderId => LlmProviders.Anthropic;
@@ -175,7 +176,8 @@ public sealed class AnthropicProvider : ILlmProvider, IDisposable
             throw Error(LlmErrorKind.Timeout, null, ex);
         }
 
-        var stopReason = message.StopReason?.ToString();
+        // ApiEnum.ToString() returns JSON (quoted); Raw() returns the value, including values unknown to the SDK.
+        var stopReason = message.StopReason?.Raw();
         if (stopReason == "refusal")
         {
             throw Error(LlmErrorKind.Refused, message.StopDetails?.Explanation, null);
@@ -195,7 +197,7 @@ public sealed class AnthropicProvider : ILlmProvider, IDisposable
         }
 
         var usage = message.Usage is { } u ? new LlmUsage(u.InputTokens, u.OutputTokens) : null;
-        var servedModel = message.Model.ToString();
+        var servedModel = message.Model.Raw();
         return new LlmResponse(text, string.IsNullOrEmpty(servedModel) ? Model : servedModel, usage);
     }
 
