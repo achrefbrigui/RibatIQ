@@ -30,6 +30,15 @@ public sealed class LiveProviderTests
         await AssertProviderProducesValidResponseAsync(new OpenAiProvider(key, Environment.GetEnvironmentVariable("RIBATIQ_LIVE_OPENAI_MODEL")));
     }
 
+    [Fact]
+    public async Task Anthropic_ReturnsSchemaValidFindings()
+    {
+        var key = RequireLive(AnthropicProvider.ApiKeyVariable);
+
+        using var provider = new AnthropicProvider(key, Environment.GetEnvironmentVariable("RIBATIQ_LIVE_ANTHROPIC_MODEL"));
+        await AssertProviderProducesValidResponseAsync(provider);
+    }
+
     internal static string RequireLive(string apiKeyVariable)
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable("RIBATIQ_LIVE_TESTS") == "1", "Set RIBATIQ_LIVE_TESTS=1 to run live provider tests.");
