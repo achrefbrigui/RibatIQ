@@ -6,8 +6,10 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 using RibatIQ.Application.Analysis;
+using RibatIQ.Application.Rules;
 using RibatIQ.Application.Sources;
 using RibatIQ.Domain.Findings;
+using RibatIQ.Domain.Rules;
 
 namespace RibatIQ.Infrastructure.Roslyn;
 
@@ -25,6 +27,19 @@ public sealed class RoslynStaticAnalyzer : IStaticAnalyzer
 
     private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
+    private readonly RuleCatalog _catalog;
+
+    public RoslynStaticAnalyzer(RuleCatalog? catalog = null)
+    {
+        _catalog = catalog ?? RuleCatalog.Default;
+    }
+
+    /// <summary>Catalogue rules this analyzer can report.</summary>
+    public static IReadOnlyList<ReviewRuleId> SupportedRules { get; } =
+        [RibatRules.SyntaxError, .. RibatRules.CatalogueRules.Values];
+
+    IReadOnlyList<ReviewRuleId> IStaticAnalyzer.SupportedRules => SupportedRules;
+
     public string Coverage => "C# syntax errors and RibatIQ rules (RIQ1001-RIQ1004); no build or semantic analysis";
 
     public async Task<StaticAnalysisResult> AnalyzeAsync(IReadOnlyList<SourceDocument> documents, CancellationToken cancellationToken)
@@ -40,9 +55,10 @@ public sealed class RoslynStaticAnalyzer : IStaticAnalyzer
 
         foreach (var tree in trees)
         {
+            var syntaxRule = _catalog.Get(RibatRules.SyntaxError);
             findings.AddRange(tree.GetDiagnostics(cancellationToken)
                 .Where(d => d.Severity == DiagnosticSeverity.Error)
-                .Select(ToSyntaxErrorFinding));
+                .Select(d => ToFinding(d, syntaxRule, CompilerSource)));
         }
 
         if (trees.Length > 0)
@@ -61,11 +77,17 @@ public sealed class RoslynStaticAnalyzer : IStaticAnalyzer
                     concurrentAnalysis: true,
                     logAnalyzerExecutionTime: false));
 
-            foreach (var diagnostic in await withAnalyzers.GetAnalyzerDiagnosticsAsync(cancellationToken).ConfigureAwait(false))
+            // Concurrent analysis reports diagnostics in no particular order; sort them so reports are stable.
+            var diagnostics = (await withAnalyzers.GetAnalyzerDiagnosticsAsync(cancellationToken).ConfigureAwait(false))
+                .OrderBy(d => d.Location.SourceTree?.FilePath, StringComparer.Ordinal)
+                .ThenBy(d => d.Location.SourceSpan.Start)
+                .ThenBy(d => d.Id, StringComparer.Ordinal);
+
+            foreach (var diagnostic in diagnostics)
             {
-                if (RibatRules.Classification.TryGetValue(diagnostic.Id, out var classification))
+                if (RibatRules.CatalogueRules.TryGetValue(diagnostic.Id, out var ruleId))
                 {
-                    findings.Add(ToRuleFinding(diagnostic, classification.Severity, classification.Category));
+                    findings.Add(ToFinding(diagnostic, _catalog.Get(ruleId), RibatRules.Source));
                 }
                 else
                 {
@@ -78,40 +100,24 @@ public sealed class RoslynStaticAnalyzer : IStaticAnalyzer
         return new StaticAnalysisResult(findings, warnings);
     }
 
-    private static ReviewFinding ToSyntaxErrorFinding(Diagnostic diagnostic)
+    /// <summary>A deterministic finding classified by its catalogue rule (title, severity, category).</summary>
+    private static ReviewFinding ToFinding(Diagnostic diagnostic, RuleDefinition rule, string source)
     {
         var (path, start, end) = GetLocation(diagnostic);
         return ReviewFinding.Create(
-            title: "C# syntax error",
+            title: rule.Title,
             description: diagnostic.GetMessage(CultureInfo.InvariantCulture),
-            severity: FindingSeverity.High,
-            category: FindingCategory.Correctness,
+            severity: rule.DefaultSeverity,
+            category: rule.Category,
             filePath: path,
             startLine: start,
             endLine: end,
             suggestedFix: null,
             confidence: null,
             origin: FindingOrigin.StaticAnalysis,
-            source: CompilerSource,
-            ruleId: diagnostic.Id);
-    }
-
-    private static ReviewFinding ToRuleFinding(Diagnostic diagnostic, FindingSeverity severity, FindingCategory category)
-    {
-        var (path, start, end) = GetLocation(diagnostic);
-        return ReviewFinding.Create(
-            title: diagnostic.Descriptor.Title.ToString(CultureInfo.InvariantCulture),
-            description: diagnostic.GetMessage(CultureInfo.InvariantCulture),
-            severity: severity,
-            category: category,
-            filePath: path,
-            startLine: start,
-            endLine: end,
-            suggestedFix: null,
-            confidence: null,
-            origin: FindingOrigin.StaticAnalysis,
-            source: RibatRules.Source,
-            ruleId: diagnostic.Id);
+            source: source,
+            toolRuleId: diagnostic.Id,
+            ruleId: rule.Id);
     }
 
     private static (string Path, int Start, int? End) GetLocation(Diagnostic diagnostic)

@@ -47,7 +47,16 @@ ribat review --base origin/main
 # Same, with AI analysis and a JSON report, failing on high-severity findings
 export ANTHROPIC_API_KEY=...          # PowerShell: $env:ANTHROPIC_API_KEY = "..."
 ribat review --base origin/main --provider anthropic --format json --output ribatiq.json --fail-on high
+
+# Security rules only, with a NuGet vulnerability audit (projects must be restored)
+ribat scan . --profile security --audit-dependencies
+
+# Choose rules and hide low-severity findings
+ribat review --base origin/main --provider openai --enable-rule CLEANCODE.NAMING --min-severity medium
 ```
+
+Put project conventions for the AI review in a `review-rules.md` file at the repository root; see
+[Review rules](docs/review-rules.md).
 
 ## Commands and options
 
@@ -66,6 +75,11 @@ ribat --help | --version
 | `--output <file>` | Write the report to a file instead of standard output. |
 | `--fail-on none\|info\|low\|medium\|high\|critical` | Exit with code 1 when a finding is at or above this severity (default `none`). |
 | `--include <glob>` / `--exclude <glob>` | Files to analyze / skip (repeatable). `bin/`, `obj/` and `.git/` are always skipped. |
+| `--profile default\|security\|performance` | Review profile (default `default`). |
+| `--enable-rule <id>` / `--disable-rule <id>` | Turn a catalogue rule on or off (repeatable), e.g. `CLEANCODE.NAMING`. |
+| `--min-severity info\|low\|medium\|high\|critical` | Do not report findings below this severity (default `info`). |
+| `--instructions <file>` | Project instructions for the AI review (default: `review-rules.md` at the root, if present). |
+| `--audit-dependencies` | `scan` only: audit NuGet packages for known vulnerabilities. Projects must be restored. |
 | `--config <file>` | Configuration file (default: `ribatiq.json` in the current directory, if present). |
 | `--verbose` | Print the effective settings to standard error. |
 
@@ -83,7 +97,7 @@ reads files at the `--head` revision rather than from the working tree. Run it i
 
 ## What is analyzed
 
-**Deterministic analysis** (always on): sources are parsed in memory by Roslyn; nothing is built,
+**Deterministic analysis** (on by default): sources are parsed in memory by Roslyn; nothing is built,
 restored or executed.
 
 | Rule | Finding |
@@ -94,8 +108,20 @@ restored or executed.
 | `RIQ1003` | `throw ex;` resets the stack trace. |
 | `RIQ1004` | Possible hard-coded secret (the value is never printed). |
 
-**AI analysis** (opt-in): the model looks for actionable bugs, security, reliability, concurrency and
-design issues, and every finding it returns is validated before it is reported.
+Each finding carries a catalogue rule ID such as `SECURITY.EXPOSED_SECRET`, with the tool diagnostic
+(`RIQ1004`) next to it.
+
+**Dependency audit** (opt-in, `scan --audit-dependencies`): `dotnet list package --vulnerable` reports
+NuGet packages with known advisories. RibatIQ never restores; projects that are not restored are
+reported as not audited.
+
+**AI analysis** (opt-in): the model reviews the code against the enabled rules of the catalogue
+(correctness, security, performance, .NET practices, clean code, architecture, testing, production
+readiness), with the project conventions from `review-rules.md`. Every finding it returns is validated
+before it is reported.
+
+Rules, profiles, `review-rules.md` and the meaning of skipped checks are described in
+[Review rules](docs/review-rules.md).
 
 | Provider | API key variable | Default model |
 |----------|------------------|---------------|
@@ -120,6 +146,10 @@ API keys are read only from the environment, never from configuration files.
   },
   "ai": {
     "provider": "anthropic"
+  },
+  "review": {
+    "profile": "security",
+    "minimumSeverity": "low"
   }
 }
 ```
@@ -138,8 +168,10 @@ See [Configuration](docs/configuration.md) and [`samples/ribatiq.json`](samples/
 - run: ribat review --base origin/${{ github.base_ref }} --format json --output ribatiq.json --fail-on high
 ```
 
-The JSON report (`schemaVersion` 1) contains the findings with stable IDs, a summary, the AI
-provider and usage, and a `gate` object with the threshold outcome.
+The JSON report (`schemaVersion` 2) contains the findings with stable IDs and rule IDs, a summary, the
+AI provider and usage, the effective `policy`, the `checks` that ran, were skipped or failed, a
+`complete` flag, and a `gate` object with the threshold outcome. Skipped or failed checks do not change
+the exit code: test `complete` if your pipeline requires every check.
 
 ## Limitations
 
@@ -149,7 +181,14 @@ provider and usage, and a `gate` object with the threshold outcome.
   items in project files are not evaluated.
 - AI findings are heuristic. Their confidence score is the model's own estimate, not a probability.
 - There is no suppression or baseline mechanism yet; finding IDs are stable to make one possible.
-- Results are not published to pull requests yet.
+- Results are not published to pull requests yet, and there is no SARIF output.
+- Most catalogue rules are detected by the AI review only, so they are checked only when a provider is
+  configured; the report says when the AI review was skipped.
+- Skipped or failed checks do not change the exit code. Test the JSON report's `complete` field if
+  your pipeline requires every check.
+- The dependency audit only covers NuGet packages of projects that are already restored.
+- Out of scope for now: other languages, DAST, automatic fixes, autonomous agents, plugins, custom
+  rule languages, and code coverage collection.
 
 ## Development
 
@@ -159,7 +198,11 @@ dotnet test
 ```
 
 Tests need no API keys and no network access beyond the NuGet restore; provider adapters are tested
-against stubbed HTTP. Opt-in live tests run with `RIBATIQ_LIVE_TESTS=1` and an API key (they are billed).
+against stubbed HTTP. Opt-in tests:
+
+- `RIBATIQ_LIVE_TESTS=1` with an API key calls the real providers (billed).
+- `RIBATIQ_NETWORK_TESTS=1` restores a sample project from nuget.org and runs the real dependency audit.
+
 See [Architecture](docs/architecture.md) and [Contributing](CONTRIBUTING.md).
 
 ## License

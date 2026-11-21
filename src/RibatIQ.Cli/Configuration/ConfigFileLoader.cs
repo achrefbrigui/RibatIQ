@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using RibatIQ.Application.Configuration;
+using RibatIQ.Domain.Findings;
 
 namespace RibatIQ.Cli.Configuration;
 
@@ -14,7 +15,11 @@ namespace RibatIQ.Cli.Configuration;
 /// {
 ///   "version": 1,
 ///   "analysis": { "include": ["src/**/*.cs"], "exclude": ["**/Migrations/**"], "failOn": "high" },
-///   "ai": { "enabled": true, "provider": "openai", "model": "model-id" }
+///   "ai": { "enabled": true, "provider": "openai", "model": "model-id" },
+///   "review": {
+///     "profile": "security", "enableRules": ["CLEANCODE.NAMING"], "disableRules": [],
+///     "minimumSeverity": "low", "instructions": "docs/review-rules.md", "auditDependencies": true
+///   }
 /// }
 /// </code>
 /// </example>
@@ -98,10 +103,10 @@ internal static class ConfigFileLoader
             throw new ConfigurationException($"The {source} could not be read: access denied.", ex);
         }
 
-        return ToLayer(model ?? new ConfigFileModel(), source);
+        return ToLayer(model ?? new ConfigFileModel(), source, Path.GetDirectoryName(path)!);
     }
 
-    private static SettingsLayer ToLayer(ConfigFileModel model, string source)
+    private static SettingsLayer ToLayer(ConfigFileModel model, string source, string directory)
     {
         if (model.Version != SupportedVersion)
         {
@@ -122,6 +127,30 @@ internal static class ConfigFileLoader
             failOn = parsed;
         }
 
+        FindingSeverity? minimumSeverity = null;
+        if (model.Review?.MinimumSeverity is { } severityValue)
+        {
+            if (!SeverityNames.TryParse(severityValue, out var severity))
+            {
+                throw new ConfigurationException(
+                    $"Invalid review.minimumSeverity value '{severityValue}' ({source}). Expected one of: {string.Join(", ", SeverityNames.All)}.");
+            }
+
+            minimumSeverity = severity;
+        }
+
+        string? instructions = null;
+        if (model.Review?.Instructions is { } instructionsValue)
+        {
+            if (string.IsNullOrWhiteSpace(instructionsValue) || instructionsValue.Any(char.IsControl))
+            {
+                throw new ConfigurationException($"Invalid review.instructions path ({source}).");
+            }
+
+            // Relative to the configuration file, so the setting means the same from any directory.
+            instructions = Path.GetFullPath(instructionsValue.Trim(), directory);
+        }
+
         return new SettingsLayer(source)
         {
             Include = model.Analysis?.Include,
@@ -130,6 +159,12 @@ internal static class ConfigFileLoader
             AiEnabled = model.Ai?.Enabled,
             Provider = model.Ai?.Provider,
             Model = model.Ai?.Model,
+            Profile = model.Review?.Profile,
+            EnableRules = model.Review?.EnableRules,
+            DisableRules = model.Review?.DisableRules,
+            MinimumSeverity = minimumSeverity,
+            InstructionsPath = instructions,
+            AuditDependencies = model.Review?.AuditDependencies,
         };
     }
 
@@ -144,6 +179,8 @@ internal static class ConfigFileLoader
         public AnalysisSection? Analysis { get; init; }
 
         public AiSection? Ai { get; init; }
+
+        public ReviewSection? Review { get; init; }
     }
 
     private sealed record AnalysisSection
@@ -153,6 +190,21 @@ internal static class ConfigFileLoader
         public IReadOnlyList<string>? Exclude { get; init; }
 
         public string? FailOn { get; init; }
+    }
+
+    private sealed record ReviewSection
+    {
+        public string? Profile { get; init; }
+
+        public IReadOnlyList<string>? EnableRules { get; init; }
+
+        public IReadOnlyList<string>? DisableRules { get; init; }
+
+        public string? MinimumSeverity { get; init; }
+
+        public string? Instructions { get; init; }
+
+        public bool? AuditDependencies { get; init; }
     }
 
     private sealed record AiSection

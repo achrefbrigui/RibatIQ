@@ -1,5 +1,7 @@
 using RibatIQ.Application.Ai;
 using RibatIQ.Application.Configuration;
+using RibatIQ.Application.Instructions;
+using RibatIQ.Domain.Policies;
 using RibatIQ.Domain.Results;
 
 namespace RibatIQ.Application.Reporting;
@@ -38,6 +40,15 @@ public sealed record AnalysisReport(
 
     /// <summary>Whether the run fails the threshold (exit code 1). Evaluated after the report is produced.</summary>
     public bool ThresholdExceeded => FailingFindings > 0;
+
+    /// <summary>The effective review policy, when known.</summary>
+    public ReviewPolicy? Policy { get; init; }
+
+    /// <summary>Findings not reported because of the policy.</summary>
+    public int PolicyExcluded { get; init; }
+
+    /// <summary>What happened to the project instructions, when they were looked for.</summary>
+    public InstructionsLoadResult? Instructions { get; init; }
 }
 
 /// <summary>Renders an <see cref="AnalysisReport"/> in one output format.</summary>

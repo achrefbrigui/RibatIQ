@@ -16,10 +16,10 @@ public sealed class ScanEndToEndTests : IDisposable
 
         Assert.Equal(ExitCodes.Success, result.ExitCode);
         Assert.Contains("Analyzed 3 C# file(s) in 2 project(s).", result.Output, StringComparison.Ordinal);
-        Assert.Contains("src/Sample.Web/Startup.cs:5  [RIQ1004]", result.Output, StringComparison.Ordinal);
-        Assert.Contains("src/Sample.Web/Startup.cs:7  [RIQ1002]", result.Output, StringComparison.Ordinal);
-        Assert.Contains("src/Sample.Core/Issues.cs:11  [RIQ1001]", result.Output, StringComparison.Ordinal);
-        Assert.Contains("src/Sample.Core/Issues.cs:24  [RIQ1003]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("src/Sample.Web/Startup.cs:5  [SECURITY.EXPOSED_SECRET (RIQ1004)]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("src/Sample.Web/Startup.cs:7  [DOTNET.ASYNC.ASYNC_VOID (RIQ1002)]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("src/Sample.Core/Issues.cs:11  [DOTNET.EXCEPTIONS.EMPTY_CATCH (RIQ1001)]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("src/Sample.Core/Issues.cs:24  [DOTNET.EXCEPTIONS.RETHROW_LOSES_STACK (RIQ1003)]", result.Output, StringComparison.Ordinal);
         Assert.Contains("4 finding(s): 0 critical, 1 high, 2 medium, 1 low, 0 info.", result.Output, StringComparison.Ordinal);
         Assert.Contains("src/Missing/Missing.csproj", result.Output, StringComparison.Ordinal);
         Assert.Contains("does not prove", result.Output, StringComparison.Ordinal);
@@ -30,9 +30,9 @@ public sealed class ScanEndToEndTests : IDisposable
     {
         var output = (await RunAsync("scan", "SampleSolution.sln")).Output;
 
-        var high = output.IndexOf("[RIQ1004]", StringComparison.Ordinal);
-        var medium = output.IndexOf("[RIQ1001]", StringComparison.Ordinal);
-        var low = output.IndexOf("[RIQ1003]", StringComparison.Ordinal);
+        var high = output.IndexOf("[SECURITY.EXPOSED_SECRET (RIQ1004)]", StringComparison.Ordinal);
+        var medium = output.IndexOf("[DOTNET.EXCEPTIONS.EMPTY_CATCH (RIQ1001)]", StringComparison.Ordinal);
+        var low = output.IndexOf("[DOTNET.EXCEPTIONS.RETHROW_LOSES_STACK (RIQ1003)]", StringComparison.Ordinal);
 
         Assert.True(high < medium && medium < low, output);
     }
@@ -45,7 +45,7 @@ public sealed class ScanEndToEndTests : IDisposable
         Assert.Equal(ExitCodes.Success, result.ExitCode);
         Assert.Contains("Analyzed 5 C# file(s) in 3 project(s).", result.Output, StringComparison.Ordinal);
         Assert.Contains("src/Sample.Web/Nested/Inner.cs:", result.Output, StringComparison.Ordinal);
-        Assert.Contains("[CS1513]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("[CSHARP.SYNTAX.ERROR (CS1513)]", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]

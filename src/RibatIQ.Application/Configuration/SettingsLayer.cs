@@ -1,3 +1,5 @@
+using RibatIQ.Domain.Findings;
+
 namespace RibatIQ.Application.Configuration;
 
 /// <summary>
@@ -18,4 +20,20 @@ public sealed record SettingsLayer(string Source)
     public IReadOnlyList<string>? Include { get; init; }
 
     public IReadOnlyList<string>? Exclude { get; init; }
+
+    /// <summary>Review profile name.</summary>
+    public string? Profile { get; init; }
+
+    /// <summary>Rule IDs to enable; a higher layer can disable them again.</summary>
+    public IReadOnlyList<string>? EnableRules { get; init; }
+
+    /// <summary>Rule IDs to disable; a higher layer can enable them again.</summary>
+    public IReadOnlyList<string>? DisableRules { get; init; }
+
+    public FindingSeverity? MinimumSeverity { get; init; }
+
+    /// <summary>Absolute path of the project instructions file; the source resolves relative paths.</summary>
+    public string? InstructionsPath { get; init; }
+
+    public bool? AuditDependencies { get; init; }
 }

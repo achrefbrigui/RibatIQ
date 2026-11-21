@@ -21,7 +21,8 @@ public sealed class AnalysisResult
         AnalysisMetadata metadata,
         DateTimeOffset startedAt,
         DateTimeOffset completedAt,
-        IEnumerable<string>? warnings = null)
+        IEnumerable<string>? warnings = null,
+        IEnumerable<CheckResult>? checks = null)
     {
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentNullException.ThrowIfNull(metadata);
@@ -67,6 +68,17 @@ public sealed class AnalysisResult
                 .Where(w => !string.IsNullOrWhiteSpace(w))
                 .Select(w => w.Trim())
                 .ToArray());
+
+        var checkList = (checks ?? [])
+            .Select(c => c ?? throw new ArgumentException("Checks must not contain null entries.", nameof(checks)))
+            .ToArray();
+        var duplicateCheck = checkList.GroupBy(c => c.CheckId, StringComparer.Ordinal).FirstOrDefault(g => g.Count() > 1);
+        if (duplicateCheck is not null)
+        {
+            throw new ArgumentException($"Check '{duplicateCheck.Key}' appears more than once.", nameof(checks));
+        }
+
+        Checks = Array.AsReadOnly(checkList);
     }
 
     public AnalysisKind Kind { get; }
@@ -88,4 +100,17 @@ public sealed class AnalysisResult
 
     /// <summary>Non-fatal issues worth surfacing, such as skipped files or truncated context.</summary>
     public ReadOnlyCollection<string> Warnings { get; }
+
+    /// <summary>What ran, what was skipped and what failed, in execution order.</summary>
+    public ReadOnlyCollection<CheckResult> Checks { get; }
+
+    /// <summary>Whether every recorded check completed. A run with skipped or failed checks is partial.</summary>
+    public bool AllChecksCompleted => Checks.All(c => c.Status == CheckStatus.Completed);
+
+    /// <summary>Number of reported findings that belong to <paramref name="check"/>'s rules.</summary>
+    public int CountFindings(CheckResult check)
+    {
+        ArgumentNullException.ThrowIfNull(check);
+        return Findings.Count(f => f.RuleId is { } id && check.RuleIds.Contains(id));
+    }
 }

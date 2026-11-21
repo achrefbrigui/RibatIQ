@@ -4,6 +4,10 @@
     <InternalsVisibleTo Include="RibatIQ.Application.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The rule catalogue ships inside the assembly; see RuleCatalog. -->
+    <EmbeddedResource Include="..\..\rules\catalog.json" LogicalName="RibatIQ.Rules.catalog.json" Link="Rules\catalog.json" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\RibatIQ.Domain\RibatIQ.Domain.csproj" />
   </ItemGroup>
 </Project>

@@ -2,9 +2,12 @@ using System.CommandLine;
 
 using RibatIQ.Application;
 using RibatIQ.Application.Configuration;
+using RibatIQ.Application.Instructions;
 using RibatIQ.Application.Reporting;
+using RibatIQ.Application.Rules;
 using RibatIQ.Cli.Configuration;
 using RibatIQ.Cli.Output;
+using RibatIQ.Domain.Findings;
 
 namespace RibatIQ.Cli.Commands;
 
@@ -65,11 +68,49 @@ internal sealed class AnalysisOptions
         Description = "Print diagnostic details to standard error. Never prints secrets or source code.",
     };
 
-    public AnalysisOptions()
+    public Option<string> Profile { get; } = new("--profile")
+    {
+        Description = $"Review profile: {string.Join(", ", RuleCatalog.Default.Profiles.Select(p => p.Name))}. Default: {RuleCatalog.DefaultProfileName}.",
+    };
+
+    public Option<string[]> EnableRule { get; } = new("--enable-rule")
+    {
+        Description = "Enable a rule from the catalogue, for example CLEANCODE.NAMING. Repeatable.",
+    };
+
+    public Option<string[]> DisableRule { get; } = new("--disable-rule")
+    {
+        Description = "Disable a rule from the catalogue, for example SECURITY.EXPOSED_SECRET. Repeatable.",
+    };
+
+    public Option<string> MinSeverity { get; } = new("--min-severity")
+    {
+        Description = "Do not report findings below this severity. Default: info.",
+    };
+
+    public Option<string> Instructions { get; } = new("--instructions")
+    {
+        Description = $"Project instructions for the AI review, instead of {ProjectInstructionsLoader.FileName} at the root. Treated as untrusted; never changes the rules.",
+    };
+
+    /// <summary><c>--audit-dependencies</c>; only offered by commands that audit dependencies.</summary>
+    public Option<bool>? AuditDependencies { get; }
+
+    public AnalysisOptions(bool auditDependencies = false)
     {
         Provider.AcceptOnlyFromAmong([.. LlmProviders.All]);
         Format.AcceptOnlyFromAmong(ConsoleFormat, JsonFormat);
         FailOn.AcceptOnlyFromAmong([.. FailPolicy.AcceptedValues]);
+        Profile.AcceptOnlyFromAmong([.. RuleCatalog.Default.Profiles.Select(p => p.Name)]);
+        MinSeverity.AcceptOnlyFromAmong([.. SeverityNames.All]);
+
+        if (auditDependencies)
+        {
+            AuditDependencies = new Option<bool>("--audit-dependencies")
+            {
+                Description = "Audit NuGet packages for known vulnerabilities with 'dotnet list package --vulnerable'. Projects must be restored; RibatIQ never restores. Queries the configured NuGet sources.",
+            };
+        }
     }
 
     /// <summary>
@@ -95,7 +136,14 @@ internal sealed class AnalysisOptions
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        foreach (var option in new Option[] { Provider, Model, NoAi, Format, Output, Config, FailOn, Include, Exclude, Verbose })
+        Option[] options =
+        [
+            Provider, Model, NoAi, Format, Output, Config, FailOn, Include, Exclude,
+            Profile, EnableRule, DisableRule, MinSeverity, Instructions, .. AuditDependencies is null ? [] : new Option[] { AuditDependencies },
+            Verbose,
+        ];
+
+        foreach (var option in options)
         {
             command.Options.Add(option);
         }
@@ -109,10 +157,18 @@ internal sealed class AnalysisOptions
         });
     }
 
-    /// <summary>Settings explicitly given on the command line.</summary>
-    public SettingsLayer ToSettingsLayer(ParseResult parseResult)
+    /// <summary>Settings explicitly given on the command line; paths are relative to <paramref name="currentDirectory"/>.</summary>
+    public SettingsLayer ToSettingsLayer(ParseResult parseResult, string currentDirectory)
     {
         ArgumentNullException.ThrowIfNull(parseResult);
+
+        FindingSeverity? minimumSeverity = null;
+        if (parseResult.GetValue(MinSeverity) is { } severityValue && SeverityNames.TryParse(severityValue, out var severity))
+        {
+            minimumSeverity = severity;
+        }
+
+        var instructions = parseResult.GetValue(Instructions);
 
         FailPolicy? failOn = null;
         if (parseResult.GetValue(FailOn) is { } failOnValue && FailPolicy.TryParse(failOnValue, out var parsed))
@@ -128,6 +184,12 @@ internal sealed class AnalysisOptions
             FailOn = failOn,
             Include = parseResult.GetValue(Include),
             Exclude = parseResult.GetValue(Exclude),
+            Profile = parseResult.GetValue(Profile),
+            EnableRules = parseResult.GetValue(EnableRule),
+            DisableRules = parseResult.GetValue(DisableRule),
+            MinimumSeverity = minimumSeverity,
+            InstructionsPath = string.IsNullOrWhiteSpace(instructions) ? null : Path.GetFullPath(instructions, currentDirectory),
+            AuditDependencies = AuditDependencies is not null && parseResult.GetValue(AuditDependencies) ? true : null,
         };
     }
 
@@ -140,7 +202,7 @@ internal sealed class AnalysisOptions
         ArgumentNullException.ThrowIfNull(parseResult);
         ArgumentNullException.ThrowIfNull(context);
 
-        var commandLine = ToSettingsLayer(parseResult);
+        var commandLine = ToSettingsLayer(parseResult, context.CurrentDirectory);
         var environment = EnvironmentSettings.Read(context.GetEnvironmentVariable);
         var configFile = await ConfigFileLoader
             .LoadAsync(parseResult.GetValue(Config)?.ToString(), context.CurrentDirectory, cancellationToken)
@@ -228,5 +290,11 @@ internal sealed class AnalysisOptions
         await error.WriteLineAsync($"[verbose] Include: {(settings.Include.Count == 0 ? "(all supported files)" : string.Join(", ", settings.Include))}").ConfigureAwait(false);
         await error.WriteLineAsync($"[verbose] Exclude: {string.Join(", ", settings.Exclude)}").ConfigureAwait(false);
         await error.WriteLineAsync($"[verbose] Format: {parseResult.GetValue(Format)}").ConfigureAwait(false);
+        await error.WriteLineAsync($"[verbose] Profile: {settings.Profile ?? RuleCatalog.DefaultProfileName}").ConfigureAwait(false);
+        await error.WriteLineAsync($"[verbose] Enabled rules: {(settings.EnableRules.Count == 0 ? "(profile only)" : string.Join(", ", settings.EnableRules))}").ConfigureAwait(false);
+        await error.WriteLineAsync($"[verbose] Disabled rules: {(settings.DisableRules.Count == 0 ? "(profile only)" : string.Join(", ", settings.DisableRules))}").ConfigureAwait(false);
+        await error.WriteLineAsync($"[verbose] Minimum severity: {SeverityNames.Of(settings.MinimumSeverity)}").ConfigureAwait(false);
+        await error.WriteLineAsync($"[verbose] Instructions: {settings.InstructionsPath ?? $"{ProjectInstructionsLoader.FileName} at the root, when present"}").ConfigureAwait(false);
+        await error.WriteLineAsync($"[verbose] Dependency audit: {(settings.AuditDependencies ? "requested" : "not requested")}").ConfigureAwait(false);
     }
 }

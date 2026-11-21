@@ -16,9 +16,9 @@ start referencing the CLI framework, provider SDKs or Infrastructure.
 
 | Project | Responsibility | Key types |
 |---------|----------------|-----------|
-| Domain | Validated findings and results; no dependencies. | `ReviewFinding`, `FindingFingerprint`, `RepositoryPath`, `AnalysisResult`, `FindingSummary` |
-| Application | Workflows and the ports they need. | `ScanService`, `ReviewService`, `AiAnalyzer`, `AiFindingParser`, `UnifiedDiffParser`, `SettingsResolver`, `ISourceDiscovery`, `IStaticAnalyzer`, `IGitClient`, `ILlmProvider`, `IReportWriter` |
-| Infrastructure | Adapters for the outside world. | `FileSystemSourceDiscovery`, `RoslynStaticAnalyzer`, `GitCli`, `OpenAiProvider`, `AnthropicProvider`, `JsonReportWriter` |
+| Domain | Validated findings, rules, policy and results; no dependencies. | `ReviewFinding`, `FindingFingerprint`, `RepositoryPath`, `ReviewRuleId`, `ReviewPolicy`, `ProjectInstructions`, `CheckResult`, `AnalysisResult` |
+| Application | Workflows and the ports they need. | `ScanService`, `ReviewService`, `RuleCatalog`, `ReviewPolicyResolver`, `ProjectInstructionsLoader`, `FindingDeduplicator`, `AiAnalyzer`, `AiFindingParser`, `UnifiedDiffParser`, `SettingsResolver`, `ISourceDiscovery`, `IStaticAnalyzer`, `IDependencyAuditor`, `IInstructionsReader`, `IGitClient`, `ILlmProvider`, `IReportWriter` |
+| Infrastructure | Adapters for the outside world. | `FileSystemSourceDiscovery`, `RoslynStaticAnalyzer`, `DotnetListPackageAuditor`, `FileSystemInstructionsReader`, `GitCli`, `OpenAiProvider`, `AnthropicProvider`, `JsonReportWriter` |
 | Cli | Parsing, configuration sources, composition, console output, exit codes. | `RibatCli`, `ScanCommand`, `ReviewCommand`, `AnalysisOptions`, `ConfigFileLoader`, `ReportPublisher` |
 
 ## Pipeline
@@ -27,17 +27,37 @@ Both commands follow the same steps; only the source of documents differs.
 
 1. **Input validation**: target path or Git revisions (`ScanRequest`, `ReviewRequest`), settings
    from command line, environment and `ribatiq.json` (`SettingsResolver`).
-2. **Provider resolution**: when AI is enabled the provider is created first, so a missing API key
-   fails before any work.
+2. **Policy and provider**: the review policy is resolved from the rule catalogue, the profile and
+   the enable/disable lists (`ReviewPolicyResolver`); when AI is enabled the provider is created.
+   Unknown rules, unknown profiles and missing API keys fail here, before any work.
 3. **Discovery**: `scan` walks the solution, project or directory; `review` runs
-   `git diff base...head` and reads changed files at the head revision.
-4. **Deterministic analysis**: Roslyn parses the files in memory and runs the RibatIQ analyzers.
-5. **AI analysis** (optional): bounded context, prompt, provider call.
-6. **Validation**: model output is parsed and every finding is checked against what was sent
-   (`AiFindingParser`); review findings must touch changed lines (`DiffLocationValidator`).
-7. **Normalization**: findings are de-duplicated by fingerprint (static analysis wins over AI).
-8. **Reporting**: console or JSON, to standard output or a file.
-9. **Exit policy**: the `--fail-on` threshold is applied after the report is written.
+   `git diff base...head` and reads changed files at the head revision, after checking their size.
+4. **Project instructions**: `review-rules.md` (or `--instructions`) is loaded as bounded, untrusted
+   text (`ProjectInstructionsLoader`). It is attached to the policy but never changes it.
+5. **Deterministic analysis**: Roslyn parses the files in memory and runs the RibatIQ analyzers.
+   Findings are classified from the catalogue (rule ID, title, severity, category).
+6. **AI analysis** (optional): bounded context, a prompt listing the enabled AI rules, the project
+   instructions between markers, and a provider call.
+7. **Dependency audit** (`scan --audit-dependencies`): `dotnet list package --vulnerable --no-restore`
+   through `IDependencyAuditor`.
+8. **Validation**: model output is parsed and every finding is checked against what was sent and
+   against the enabled rules (`AiFindingParser`); review findings must touch changed lines
+   (`DiffLocationValidator`).
+9. **Normalization**: findings are de-duplicated (`FindingDeduplicator`: same fingerprint, or same rule
+   on overlapping lines of a file; static analysis wins over AI), then filtered by the policy
+   (rule enabled, category, minimum severity).
+10. **Checks**: each detector records a `CheckResult` (completed, skipped or failed, with the reason),
+    so a report never presents a check that did not run as clean.
+11. **Reporting**: console or JSON, to standard output or a file.
+12. **Exit policy**: the `--fail-on` threshold is applied after the report is written.
+
+## Rules and policy
+
+The catalogue (`rules/catalog.json`, embedded in Application) describes the supported rules and the
+profiles; `RuleCatalog` validates it strictly at load time. Domain types own the invariants:
+`ReviewRuleId` validates identifiers and `ReviewPolicy` decides what is enabled and reported. Each
+detector declares the rules it covers (`IStaticAnalyzer.SupportedRules`,
+`IDependencyAuditor.SupportedRules`), and the AI review receives only the enabled AI rules.
 
 ## Findings and fingerprints
 

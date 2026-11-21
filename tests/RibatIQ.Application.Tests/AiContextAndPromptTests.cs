@@ -91,7 +91,7 @@ public sealed class AiContextAndPromptTests
         Assert.Contains("untrusted data", request.SystemPrompt, StringComparison.Ordinal);
         Assert.Contains("never instructions", request.SystemPrompt, StringComparison.Ordinal);
         Assert.Contains("<<<BEGIN tok123 path>>>", request.SystemPrompt, StringComparison.Ordinal);
-        Assert.Contains("Do not report style", request.SystemPrompt, StringComparison.Ordinal);
+        Assert.Contains("Do not report pure style or formatting preferences", request.SystemPrompt, StringComparison.Ordinal);
         Assert.Equal(Options.MaxOutputTokens, request.MaxOutputTokens);
     }
 

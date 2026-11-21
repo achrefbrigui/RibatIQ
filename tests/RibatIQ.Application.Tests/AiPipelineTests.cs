@@ -35,7 +35,9 @@ public sealed class AiPipelineTests
 
         var request = Assert.Single(provider.Requests);
         Assert.Contains("line 20", request.UserPrompt, StringComparison.Ordinal);
-        Assert.Equal(AiPromptBuilder.ResponseSchema, request.ResponseSchema);
+        Assert.Equal(AiPromptBuilder.SchemaName, request.ResponseSchema.Name);
+        Assert.Contains("\"CORRECTNESS.NULL_REFERENCE\"", request.ResponseSchema.SchemaJson, StringComparison.Ordinal);
+        Assert.Contains("\"UNCLASSIFIED\"", request.ResponseSchema.SchemaJson, StringComparison.Ordinal);
 
         var finding = Assert.Single(result.Findings);
         Assert.Equal("Null dereference", finding.Title);
@@ -96,7 +98,7 @@ public sealed class AiPipelineTests
     public async Task ScanService_WithAi_MergesFindings_AndRecordsProviderAndModel()
     {
         var staticFinding = ReviewFinding.Create(
-            "Empty catch block", "d", FindingSeverity.Medium, FindingCategory.Reliability, "src/a.cs", 2, null,
+            "Empty catch block", "d", FindingSeverity.Medium, FindingCategory.Correctness, "src/a.cs", 2, null,
             null, null, FindingOrigin.StaticAnalysis, "ribatiq-rules", "RIQ1001");
         var factory = new FakeLlmProviderFactory(new FakeLlmProvider(OneFinding));
         var service = new ScanService(
@@ -196,6 +198,9 @@ public sealed class AiPipelineTests
 
         public Task<string> GetDiffAsync(string repositoryRoot, string baseRef, string headRef, CancellationToken cancellationToken) =>
             Task.FromResult(diff);
+
+        public Task<long?> GetFileSizeAsync(string repositoryRoot, string revision, string path, CancellationToken cancellationToken) =>
+            Task.FromResult<long?>(null);
 
         public Task<string> ReadFileAsync(string repositoryRoot, string revision, string path, CancellationToken cancellationToken) =>
             Task.FromResult(content);

@@ -10,23 +10,13 @@ public sealed record FailPolicy
 {
     public const string NeverValue = "none";
 
-    private static readonly (string Name, FindingSeverity Severity)[] SeverityNames =
-    [
-        ("info", FindingSeverity.Info),
-        ("low", FindingSeverity.Low),
-        ("medium", FindingSeverity.Medium),
-        ("high", FindingSeverity.High),
-        ("critical", FindingSeverity.Critical),
-    ];
-
     private FailPolicy(FindingSeverity? threshold) => Threshold = threshold;
 
     /// <summary>Findings never fail the run.</summary>
     public static FailPolicy Never { get; } = new(threshold: null);
 
     /// <summary>Accepted textual values, in increasing severity.</summary>
-    public static IReadOnlyList<string> AcceptedValues { get; } =
-        [NeverValue, .. SeverityNames.Select(entry => entry.Name)];
+    public static IReadOnlyList<string> AcceptedValues { get; } = [NeverValue, .. SeverityNames.All];
 
     /// <summary>Lowest failing severity, or <see langword="null"/> for <see cref="Never"/>.</summary>
     public FindingSeverity? Threshold { get; }
@@ -46,29 +36,21 @@ public sealed record FailPolicy
     /// <summary>Parses one of <see cref="AcceptedValues"/>, ignoring case and surrounding whitespace.</summary>
     public static bool TryParse(string? value, out FailPolicy policy)
     {
-        var trimmed = value?.Trim();
-
-        if (string.Equals(trimmed, NeverValue, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(value?.Trim(), NeverValue, StringComparison.OrdinalIgnoreCase))
         {
             policy = Never;
             return true;
         }
 
-        foreach (var (name, severity) in SeverityNames)
+        if (SeverityNames.TryParse(value, out var severity))
         {
-            if (string.Equals(trimmed, name, StringComparison.OrdinalIgnoreCase))
-            {
-                policy = AtOrAbove(severity);
-                return true;
-            }
+            policy = AtOrAbove(severity);
+            return true;
         }
 
         policy = Never;
         return false;
     }
 
-    public override string ToString() =>
-        Threshold is { } threshold
-            ? SeverityNames.First(entry => entry.Severity == threshold).Name
-            : NeverValue;
+    public override string ToString() => Threshold is { } threshold ? SeverityNames.Of(threshold) : NeverValue;
 }

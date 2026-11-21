@@ -1,4 +1,5 @@
 using RibatIQ.Application.Configuration;
+using RibatIQ.Application.Rules;
 using RibatIQ.Cli.Configuration;
 using RibatIQ.Domain.Findings;
 
@@ -21,5 +22,14 @@ public sealed class SampleConfigurationTests
         Assert.Equal(["src/**/*.cs"], settings.Include);
         Assert.Contains("**/Migrations/**", settings.Exclude);
         Assert.Contains("**/bin/**", settings.Exclude);
+
+        Assert.Equal("default", settings.Profile);
+        Assert.Equal(FindingSeverity.Low, settings.MinimumSeverity);
+        Assert.False(settings.AuditDependencies);
+
+        // The sample only names rules that exist.
+        var policy = ReviewPolicyResolver.Resolve(
+            RuleCatalog.Default, settings.Profile, settings.EnableRules, settings.DisableRules, settings.MinimumSeverity);
+        Assert.Contains(policy.EnabledRules, r => r.Value == "CLEANCODE.NAMING");
     }
 }

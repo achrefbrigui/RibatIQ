@@ -14,6 +14,8 @@ Two rules are deliberate exceptions:
 - **Exclusions add up**: `bin/`, `obj/` and `.git/` are always excluded, plus the exclusions of every source.
 - **`--no-ai` always wins**: it cannot be combined with `--provider` or `--model` on the command line,
   and it disables AI even if the environment or the file sets a provider.
+- **Rule lists are applied in order**: the file's `enableRules` and `disableRules` first, then
+  `--enable-rule` and `--disable-rule`, so the command line can turn a rule back on or off.
 
 ## Settings
 
@@ -25,6 +27,12 @@ Two rules are deliberate exceptions:
 | Failure threshold | `--fail-on` | `RIBATIQ_FAIL_ON` | `analysis.failOn` | `none` |
 | Included files | `--include` | | `analysis.include` | all `*.cs` files |
 | Excluded files | `--exclude` | | `analysis.exclude` | `**/bin/**`, `**/obj/**`, `**/.git/**` |
+| Review profile | `--profile` | | `review.profile` | `default` |
+| Rules to enable | `--enable-rule` | | `review.enableRules` | none |
+| Rules to disable | `--disable-rule` | | `review.disableRules` | none |
+| Minimum reported severity | `--min-severity` | | `review.minimumSeverity` | `info` |
+| Project instructions | `--instructions` | | `review.instructions` (relative to the file) | `review-rules.md` at the root |
+| NuGet vulnerability audit | `--audit-dependencies` (scan only) | | `review.auditDependencies` | off |
 | Report format | `--format` | | | `console` |
 | Report file | `--output` | | | standard output |
 
@@ -45,6 +53,14 @@ API keys are read only from `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`.
     "enabled": true,
     "provider": "openai",
     "model": "gpt-6.2-astra"
+  },
+  "review": {
+    "profile": "security",
+    "enableRules": ["CLEANCODE.NAMING"],
+    "disableRules": ["TESTING.MISSING_TESTS"],
+    "minimumSeverity": "low",
+    "instructions": "docs/review-rules.md",
+    "auditDependencies": true
   }
 }
 ```
@@ -52,6 +68,8 @@ API keys are read only from `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`.
 - `version` is required and must be `1`.
 - Unknown settings are rejected (this also prevents storing API keys in the file).
 - Errors name the file, the line and the setting, and exit with code 2.
+
+Rules, profiles and `review-rules.md` are described in [Review rules](review-rules.md).
 
 A commented example is available in [`samples/ribatiq.json`](../samples/ribatiq.json).
 

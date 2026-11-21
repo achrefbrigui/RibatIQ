@@ -3,7 +3,9 @@ using System.CommandLine;
 using RibatIQ.Application.Reporting;
 using RibatIQ.Application.Scanning;
 using RibatIQ.Cli.Output;
+using RibatIQ.Infrastructure.Dependencies;
 using RibatIQ.Infrastructure.Discovery;
+using RibatIQ.Infrastructure.Instructions;
 using RibatIQ.Infrastructure.Roslyn;
 
 namespace RibatIQ.Cli.Commands;
@@ -25,7 +27,7 @@ internal static class ScanCommand
             "Scan a .NET solution, project or directory with static analysis. Source files are only read, never modified.");
         command.Arguments.Add(pathArgument);
 
-        var options = new AnalysisOptions();
+        var options = new AnalysisOptions(auditDependencies: true);
         options.AddTo(command);
 
         command.SetAction(async (parseResult, cancellationToken) =>
@@ -48,7 +50,9 @@ internal static class ScanCommand
                         new RoslynStaticAnalyzer(),
                         TimeProvider.System,
                         ToolInfo.Version,
-                        context.ResolveLlmProviders());
+                        context.ResolveLlmProviders(),
+                        instructions: new FileSystemInstructionsSource(),
+                        dependencies: new DotnetListPackageAuditor());
 
                     var outcome = await service.RunAsync(request, settings, cancellationToken).ConfigureAwait(false);
 
@@ -58,7 +62,12 @@ internal static class ScanCommand
                         outcome.Coverage,
                         new ReportStatistics(outcome.FileCount, ProjectCount: outcome.ProjectCount),
                         outcome.Ai,
-                        settings.FailOn);
+                        settings.FailOn)
+                    {
+                        Policy = outcome.Policy,
+                        PolicyExcluded = outcome.PolicyExcluded,
+                        Instructions = outcome.Instructions,
+                    };
 
                     return await options.PublishAsync(report, parseResult, context, cancellationToken).ConfigureAwait(false);
                 },

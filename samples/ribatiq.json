@@ -19,5 +19,24 @@
     "enabled": true,
     "provider": "anthropic"
     // "model": "claude-opus-5-5"
+  },
+
+  "review": {
+    // Built-in profile: default, security or performance.
+    "profile": "default",
+
+    // Rule IDs from rules/catalog.json. Command-line options are applied after these lists.
+    "enableRules": ["CLEANCODE.NAMING"],
+    "disableRules": [],
+
+    // Findings below this severity are not reported: info, low, medium, high or critical.
+    "minimumSeverity": "low",
+
+    // Project instructions for the AI review (default: review-rules.md at the root).
+    // Relative to this file. The content is treated as untrusted and never changes the rules above.
+    // "instructions": "docs/review-rules.md",
+
+    // Audit NuGet packages for known vulnerabilities (scan only; projects must already be restored).
+    "auditDependencies": false
   }
 }

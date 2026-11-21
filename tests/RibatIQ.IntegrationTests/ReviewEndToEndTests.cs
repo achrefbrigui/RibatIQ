@@ -54,9 +54,9 @@ public sealed class ReviewEndToEndTests : IDisposable
 
         Assert.True(result.ExitCode == ExitCodes.Success, result.Error);
         Assert.Contains("RibatIQ review: main...HEAD", result.Output, StringComparison.Ordinal);
-        Assert.Contains("src/Service.cs:8  [RIQ1002]", result.Output, StringComparison.Ordinal);
-        Assert.Contains("src/New Folder/Config.cs:3  [RIQ1004]", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("[RIQ1001]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("src/Service.cs:8  [DOTNET.ASYNC.ASYNC_VOID (RIQ1002)]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("src/New Folder/Config.cs:3  [SECURITY.EXPOSED_SECRET (RIQ1004)]", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("[DOTNET.EXCEPTIONS.EMPTY_CATCH (RIQ1001)]", result.Output, StringComparison.Ordinal);
         Assert.Contains("1 finding(s) outside changed lines ignored", result.Output, StringComparison.Ordinal);
         Assert.Contains("2 finding(s):", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("sk-live", result.Output, StringComparison.Ordinal);
@@ -98,7 +98,7 @@ public sealed class ReviewEndToEndTests : IDisposable
         var result = await RunAsync("review", "--base", "main", "--exclude", "**/Generated/**");
 
         Assert.Contains("Reviewed 0 changed C# file(s)", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("[RIQ1001]", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("[DOTNET.EXCEPTIONS.EMPTY_CATCH (RIQ1001)]", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public sealed class ReviewEndToEndTests : IDisposable
 
         var result = await RunInDirectoryAsync(Path.Combine(_repo.Path, "src", "Sub"), "review", "--base", "main");
 
-        Assert.Contains("src/Sub/Bad.cs:1  [RIQ1001]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("src/Sub/Bad.cs:1  [DOTNET.EXCEPTIONS.EMPTY_CATCH (RIQ1001)]", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]

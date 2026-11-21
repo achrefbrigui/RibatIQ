@@ -1,3 +1,5 @@
+using RibatIQ.Domain.Rules;
+
 namespace RibatIQ.Domain.Findings;
 
 /// <summary>
@@ -28,7 +30,9 @@ public sealed record ReviewFinding
         double? confidence,
         FindingOrigin origin,
         string source,
-        string? ruleId)
+        string? toolRuleId,
+        ReviewRuleId? ruleId = null,
+        string? evidence = null)
     {
         if (!FindingFingerprint.IsWellFormed(id))
         {
@@ -45,11 +49,15 @@ public sealed record ReviewFinding
         FilePath = RepositoryPath.Normalize(filePath, nameof(filePath));
         (StartLine, EndLine) = ValidateLines(startLine, endLine);
         SuggestedFix = OptionalText(suggestedFix, MaxTextLength, nameof(suggestedFix));
-        Confidence = ValidateConfidence(confidence);
         Origin = RequireDefined(origin, nameof(origin));
+        Confidence = ValidateConfidence(confidence, Origin);
         Source = RequireText(source, MaxIdentifierLength, nameof(source));
-        RuleId = OptionalText(ruleId, MaxIdentifierLength, nameof(ruleId));
+        ToolRuleId = OptionalText(toolRuleId, MaxIdentifierLength, nameof(toolRuleId));
+        RuleId = ruleId;
+        Evidence = OptionalText(evidence, MaxEvidenceLength, nameof(evidence));
     }
+
+    public const int MaxEvidenceLength = 2_000;
 
     /// <summary>Stable fingerprint; see <see cref="FindingFingerprint"/>.</summary>
     public string Id { get; }
@@ -75,8 +83,8 @@ public sealed record ReviewFinding
     public string? SuggestedFix { get; }
 
     /// <summary>
-    /// Optional heuristic score in [0, 1] reported by the producer. It is <b>not</b> a calibrated
-    /// probability and must not be treated as authoritative.
+    /// Heuristic score in [0, 1] for AI findings only. It is <b>not</b> a calibrated probability and must
+    /// not be treated as authoritative. Always <see langword="null"/> for deterministic findings.
     /// </summary>
     public double? Confidence { get; }
 
@@ -85,8 +93,14 @@ public sealed record ReviewFinding
     /// <summary>Producer identifier, for example <c>roslyn</c> or an LLM provider ID.</summary>
     public string Source { get; }
 
-    /// <summary>Producer rule identifier such as <c>CS8602</c>, when one exists.</summary>
-    public string? RuleId { get; }
+    /// <summary>The producing tool's own diagnostic ID, such as <c>CS1026</c> or <c>RIQ1001</c>, when one exists.</summary>
+    public string? ToolRuleId { get; }
+
+    /// <summary>The RibatIQ review rule this finding belongs to, when it is classified.</summary>
+    public ReviewRuleId? RuleId { get; }
+
+    /// <summary>Short evidence or reasoning supporting the finding (never a copy of secret values).</summary>
+    public string? Evidence { get; }
 
     /// <summary>Creates a finding and computes its stable <see cref="Id"/>.</summary>
     public static ReviewFinding Create(
@@ -101,12 +115,14 @@ public sealed record ReviewFinding
         double? confidence,
         FindingOrigin origin,
         string source,
-        string? ruleId)
+        string? toolRuleId,
+        ReviewRuleId? ruleId = null,
+        string? evidence = null)
     {
-        var id = FindingFingerprint.Compute(filePath, ruleId, title, startLine);
+        var id = FindingFingerprint.Compute(filePath, ruleId, toolRuleId, title, startLine);
         return new ReviewFinding(
             id, title, description, severity, category, filePath, startLine, endLine,
-            suggestedFix, confidence, origin, source, ruleId);
+            suggestedFix, confidence, origin, source, toolRuleId, ruleId, evidence);
     }
 
     private static string RequireText(string? value, int maxLength, string paramName)
@@ -153,9 +169,19 @@ public sealed record ReviewFinding
         return (startLine, endLine);
     }
 
-    private static double? ValidateConfidence(double? confidence)
+    private static double? ValidateConfidence(double? confidence, FindingOrigin origin)
     {
-        if (confidence is { } value && (!double.IsFinite(value) || value is < 0 or > 1))
+        if (confidence is not { } value)
+        {
+            return null;
+        }
+
+        if (origin == FindingOrigin.StaticAnalysis)
+        {
+            throw new ArgumentException("Deterministic findings must not carry a confidence score.", nameof(confidence));
+        }
+
+        if (!double.IsFinite(value) || value is < 0 or > 1)
         {
             throw new ArgumentOutOfRangeException(nameof(confidence), confidence, "Confidence must be between 0 and 1.");
         }

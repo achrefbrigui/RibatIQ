@@ -1,3 +1,5 @@
+using RibatIQ.Domain.Findings;
+
 namespace RibatIQ.Application.Configuration;
 
 /// <summary>
@@ -9,6 +11,7 @@ namespace RibatIQ.Application.Configuration;
 /// <list type="bullet">
 /// <item>AI analysis is enabled only when a provider is configured, unless a layer explicitly disables it.</item>
 /// <item><c>Include</c> comes from the highest layer that sets a non-empty list.</item>
+/// <item>Rule enable/disable lists are applied from the lowest layer to the highest; within one layer a rule cannot be both.</item>
 /// <item><c>Exclude</c> is additive: <see cref="DefaultExcludes"/> plus every layer's exclusions, so a
 /// higher layer can never re-include build output or the Git directory.</item>
 /// </list>
@@ -16,6 +19,7 @@ namespace RibatIQ.Application.Configuration;
 public static class SettingsResolver
 {
     public const int MaxGlobLength = 512;
+    public const int MaxRuleIdLength = 100;
 
     public static IReadOnlyList<string> DefaultExcludes { get; } = ["**/bin/**", "**/obj/**", "**/.git/**"];
 
@@ -57,13 +61,58 @@ public static class SettingsResolver
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
+        var (enableRules, disableRules) = MergeRules(layersByPrecedence);
+
         return new RibatSettings(
             aiEnabled,
             aiEnabled ? provider : null,
             aiEnabled ? model : null,
             failOn,
             include,
-            exclude);
+            exclude)
+        {
+            Profile = layersByPrecedence.Select(l => l.Profile?.Trim()).FirstOrDefault(p => !string.IsNullOrEmpty(p)),
+            EnableRules = enableRules,
+            DisableRules = disableRules,
+            MinimumSeverity = layersByPrecedence.Select(l => l.MinimumSeverity).FirstOrDefault(s => s is not null) ?? FindingSeverity.Info,
+            InstructionsPath = layersByPrecedence.Select(l => l.InstructionsPath).FirstOrDefault(p => p is not null),
+            AuditDependencies = layersByPrecedence.Select(l => l.AuditDependencies).FirstOrDefault(a => a is not null) ?? false,
+        };
+    }
+
+    /// <summary>
+    /// Applies the layers from the lowest precedence to the highest, so a higher layer can enable a rule a
+    /// lower one disabled, and the other way round.
+    /// </summary>
+    private static (string[] Enable, string[] Disable) MergeRules(IReadOnlyList<SettingsLayer> layersByPrecedence)
+    {
+        var enable = new List<string>();
+        var disable = new List<string>();
+
+        foreach (var layer in layersByPrecedence.Reverse())
+        {
+            foreach (var rule in layer.EnableRules ?? [])
+            {
+                var id = rule.Trim().ToUpperInvariant();
+                disable.Remove(id);
+                if (!enable.Contains(id))
+                {
+                    enable.Add(id);
+                }
+            }
+
+            foreach (var rule in layer.DisableRules ?? [])
+            {
+                var id = rule.Trim().ToUpperInvariant();
+                enable.Remove(id);
+                if (!disable.Contains(id))
+                {
+                    disable.Add(id);
+                }
+            }
+        }
+
+        return ([.. enable], [.. disable]);
     }
 
     private static void Validate(SettingsLayer layer)
@@ -78,6 +127,39 @@ public static class SettingsResolver
 
         ValidateGlobs(layer.Include, "include", layer.Source);
         ValidateGlobs(layer.Exclude, "exclude", layer.Source);
+
+        if (layer.MinimumSeverity is { } severity && !Enum.IsDefined(severity))
+        {
+            throw new ConfigurationException($"Invalid minimum severity ({layer.Source}).");
+        }
+
+        if (layer.InstructionsPath is { } path && (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path)))
+        {
+            throw new ConfigurationException($"Invalid instructions path ({layer.Source}).");
+        }
+
+        var enable = ValidateRules(layer.EnableRules, "enable", layer.Source);
+        var disable = ValidateRules(layer.DisableRules, "disable", layer.Source);
+        var conflict = enable.Intersect(disable, StringComparer.Ordinal).Order(StringComparer.Ordinal).FirstOrDefault();
+        if (conflict is not null)
+        {
+            throw new ConfigurationException($"Rule '{conflict}' is both enabled and disabled ({layer.Source}).");
+        }
+    }
+
+    /// <summary>Checks the shape only; whether the rule exists is checked against the catalogue later.</summary>
+    private static string[] ValidateRules(IReadOnlyList<string>? rules, string kind, string source)
+    {
+        foreach (var rule in rules ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(rule) || rule.Length > MaxRuleIdLength || rule.Any(char.IsControl))
+            {
+                throw new ConfigurationException(
+                    $"Invalid rule to {kind} ({source}): rule IDs must be non-empty, at most {MaxRuleIdLength} characters, without control characters.");
+            }
+        }
+
+        return [.. (rules ?? []).Select(r => r.Trim().ToUpperInvariant())];
     }
 
     private static void ValidateGlobs(IReadOnlyList<string>? globs, string kind, string source)

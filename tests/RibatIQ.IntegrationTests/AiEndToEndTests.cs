@@ -13,7 +13,7 @@ public sealed class AiEndToEndTests : IDisposable
     private const string StartupFinding = """
         { "findings": [
           { "title": "Initialize can crash the process", "description": "Exceptions thrown after the await are unobserved.",
-            "severity": "critical", "category": "reliability", "file": "src/Sample.Web/Startup.cs",
+            "severity": "critical", "category": "bestPractices", "file": "src/Sample.Web/Startup.cs",
             "startLine": 9, "endLine": null, "suggestedFix": "Return Task.", "confidence": 0.75 },
           { "title": "Hallucinated", "description": "Points to a file that was never sent.",
             "severity": "high", "category": "security", "file": "src/Secrets.cs",
@@ -36,7 +36,7 @@ public sealed class AiEndToEndTests : IDisposable
         Assert.Contains("Note: AI analysis is enabled", result.Error, StringComparison.Ordinal);
         Assert.Contains("AI: openai (scripted-model), 3 file(s) sent, 900 input / 50 output tokens.", result.Output, StringComparison.Ordinal);
         Assert.Contains("HIGH     src/Sample.Web/Startup.cs:9  [openai] Initialize can crash the process", result.Output, StringComparison.Ordinal);
-        Assert.Contains("[RIQ1004]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("[SECURITY.EXPOSED_SECRET (RIQ1004)]", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("Hallucinated", result.Output, StringComparison.Ordinal);
         Assert.Contains("1 finding(s) were ignored", result.Output, StringComparison.Ordinal);
 
@@ -92,6 +92,45 @@ public sealed class AiEndToEndTests : IDisposable
         Assert.Equal(ExitCodes.Success, result.ExitCode);
         Assert.Empty(provider.Requests);
         Assert.DoesNotContain("Note: AI analysis", result.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Review_WithAi_UsesCommittedProjectInstructions_AndReportsTheRuleId()
+    {
+        using var repo = new TempGitRepository();
+        repo.WriteFile("src/Paging.cs", "public static class Paging\n{\n}\n");
+        repo.WriteFile("review-rules.md", "# Conventions\nPage numbers are 1-based in this code base.\n");
+        repo.Commit("base");
+        repo.Git("switch", "-q", "-c", "feature");
+        repo.WriteFile("src/Paging.cs", "public static class Paging\n{\n    public static int Skip(int page, int size) => page * size;\n}\n");
+        repo.Commit("feature");
+        repo.WriteFile("review-rules.md", "Uncommitted edit that must not be used.\n");
+
+        var provider = new ScriptedProvider("""
+            { "findings": [
+              { "ruleId": "CORRECTNESS.BOUNDARY_CONDITION", "title": "Off-by-one in paging", "description": "Pages are 1-based, so the first page skips one page.",
+                "evidence": "page * size with 1-based pages", "severity": "medium", "category": "correctness",
+                "file": "src/Paging.cs", "startLine": 3, "endLine": null, "suggestedFix": "(page - 1) * size", "confidence": 0.8 }
+            ] }
+            """);
+
+        var result = await RunAsync(provider, repo.Path, "review", "--base", "main", "--provider", "anthropic", "--format", "json");
+
+        Assert.True(result.ExitCode == ExitCodes.Success, result.Error);
+        var request = Assert.Single(provider.Requests);
+        Assert.Contains("Page numbers are 1-based", request.UserPrompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("Uncommitted edit", request.UserPrompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("1-based", request.SystemPrompt, StringComparison.Ordinal);
+
+        using var json = System.Text.Json.JsonDocument.Parse(result.Output);
+        var finding = Assert.Single(json.RootElement.GetProperty("findings").EnumerateArray());
+        Assert.Equal("CORRECTNESS.BOUNDARY_CONDITION", finding.GetProperty("ruleId").GetString());
+        Assert.Equal("ai", finding.GetProperty("origin").GetString());
+        Assert.Equal("page * size with 1-based pages", finding.GetProperty("evidence").GetString());
+
+        var aiCheck = json.RootElement.GetProperty("checks").EnumerateArray().Single(c => c.GetProperty("id").GetString() == "ai-review");
+        Assert.Equal("completed", aiCheck.GetProperty("status").GetString());
+        Assert.Equal(1, aiCheck.GetProperty("findings").GetInt32());
     }
 
     [Fact]

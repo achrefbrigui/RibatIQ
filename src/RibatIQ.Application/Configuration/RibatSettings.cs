@@ -1,3 +1,5 @@
+using RibatIQ.Domain.Findings;
+
 namespace RibatIQ.Application.Configuration;
 
 /// <summary>
@@ -16,4 +18,23 @@ public sealed record RibatSettings(
     string? Model,
     FailPolicy FailOn,
     IReadOnlyList<string> Include,
-    IReadOnlyList<string> Exclude);
+    IReadOnlyList<string> Exclude)
+{
+    /// <summary>Review profile from the rule catalogue; <see langword="null"/> for <c>default</c>.</summary>
+    public string? Profile { get; init; }
+
+    /// <summary>Rule IDs enabled in addition to the profile.</summary>
+    public IReadOnlyList<string> EnableRules { get; init; } = [];
+
+    /// <summary>Rule IDs disabled from the profile.</summary>
+    public IReadOnlyList<string> DisableRules { get; init; } = [];
+
+    /// <summary>Findings below this severity are not reported.</summary>
+    public FindingSeverity MinimumSeverity { get; init; } = FindingSeverity.Info;
+
+    /// <summary>Project instructions file to use instead of <c>review-rules.md</c> at the root; <see langword="null"/> for the default.</summary>
+    public string? InstructionsPath { get; init; }
+
+    /// <summary>Whether NuGet dependencies are audited for known vulnerabilities (scan only, opt-in).</summary>
+    public bool AuditDependencies { get; init; }
+}
