@@ -33,7 +33,9 @@ public sealed class CliCommandTests : IDisposable
         var scanHelp = (await RunAsync("scan", "--help")).Output;
         Assert.Contains("--no-ai", scanHelp, StringComparison.Ordinal);
         Assert.Contains("--exclude", scanHelp, StringComparison.Ordinal);
-        Assert.DoesNotContain("--provider", scanHelp, StringComparison.Ordinal);
+        Assert.Contains("--provider", scanHelp, StringComparison.Ordinal);
+        Assert.Contains("--model", scanHelp, StringComparison.Ordinal);
+        Assert.Contains("ANTHROPIC_API_KEY", scanHelp, StringComparison.Ordinal);
         Assert.DoesNotContain("--fail-on", scanHelp, StringComparison.Ordinal);
         Assert.DoesNotContain("--format", scanHelp, StringComparison.Ordinal);
     }

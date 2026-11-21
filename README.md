@@ -3,8 +3,8 @@
 **Open-source AI code intelligence for .NET.**
 *Built for developers who never stop improving. Guarding code. Growing intelligence.*
 
-> **Status: early development.** `scan` and `review` run deterministic static analysis.
-> AI analysis (OpenAI, Anthropic), JSON reports and the `--fail-on` threshold are not available yet.
+> **Status: early development.** `scan` and `review` run deterministic static analysis and,
+> optionally, AI analysis with OpenAI or Anthropic. JSON reports and the `--fail-on` threshold are not available yet.
 
 ## Requirements
 
@@ -18,7 +18,9 @@ dotnet build
 dotnet test
 ```
 
-Tests require no API keys and no network access beyond the initial NuGet restore.
+Tests require no API keys and no network access beyond the initial NuGet restore. Provider adapters are
+tested against stubbed HTTP; opt-in live tests run only with `RIBATIQ_LIVE_TESTS=1` and the provider API key set
+(they are billed).
 
 ## Run
 
@@ -44,6 +46,34 @@ Sources are parsed in memory: nothing is built, restored or executed, and no fil
 Diagnostics that need project references (types, overloads, nullability) are not reported yet.
 `review` reads files at the `--head` revision and reports only findings on lines changed since the
 merge base with `--base`. RibatIQ reports likely issues; it does not prove that code is correct or secure.
+
+## AI analysis (optional)
+
+AI analysis is **off by default**. Enable it by choosing a provider; the API key is read from the
+environment only (never from `ribatiq.json`):
+
+| Provider | Option | API key variable | Default model |
+|----------|--------|------------------|---------------|
+| OpenAI | `--provider openai` | `OPENAI_API_KEY` | `gpt-6.2-astra` |
+| Anthropic | `--provider anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
+
+```bash
+export ANTHROPIC_API_KEY=...        # PowerShell: $env:ANTHROPIC_API_KEY = "..."
+ribat review --base origin/main --provider anthropic
+ribat scan MySolution.sln --provider openai --model <model-id>
+```
+
+**Privacy:** when AI analysis is enabled, excerpts of your source code are sent to the provider. `review`
+sends only the changed lines plus surrounding context; `scan` sends whole files up to a size budget
+(skipped files are listed as warnings). RibatIQ prints a notice before sending anything; use `--no-ai`
+to keep code on your machine. Requests go to the providers' official endpoints; variables such as
+`ANTHROPIC_BASE_URL` are deliberately ignored so that where code is sent never changes silently.
+
+**Trust:** model output is treated as untrusted. A finding is kept only if it is valid JSON, points to a
+file and lines that were actually sent (and, for `review`, to changed lines). AI severity is capped at
+*high*, and the confidence score is a heuristic, not a probability. Repository content is framed as
+untrusted data in the prompt, so instructions hidden in code or comments are not followed. A provider
+failure, refusal or malformed response ends the run with exit code `3`, never with a clean report.
 
 ## Exit codes
 

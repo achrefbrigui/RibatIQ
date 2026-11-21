@@ -7,7 +7,7 @@ using RibatIQ.Infrastructure.Llm;
 
 namespace RibatIQ.IntegrationTests;
 
-/// <summary>OpenAI adapter against a stubbed HTTP transport: request shape, response and error mapping.</summary>
+/// <summary>OpenAI-specific request shape and behavior; shared behavior is in <see cref="OpenAiProviderContractTests"/>.</summary>
 public sealed class OpenAiProviderTests
 {
     private const string ApiKey = "sk-test-0123456789abcdef";
@@ -90,9 +90,9 @@ public sealed class OpenAiProviderTests
     }
 
     [Fact]
-    public async Task Generate_Refusal_IsReportedAsRefused()
+    public async Task Generate_ContentFilter_IsReportedAsRefused()
     {
-        var handler = new StubHttpHandler().Respond(HttpStatusCode.OK, Completion(content: null, refusal: "I can't help with that."));
+        var handler = new StubHttpHandler().Respond(HttpStatusCode.OK, Completion("""{"findings":[""", finishReason: "content_filter"));
 
         var ex = await Assert.ThrowsAsync<LlmProviderException>(() => CreateProvider(handler).GenerateAsync(Request, Ct));
 
@@ -100,41 +100,17 @@ public sealed class OpenAiProviderTests
     }
 
     [Theory]
-    [InlineData("length", LlmErrorKind.Truncated)]
-    [InlineData("content_filter", LlmErrorKind.Refused)]
-    public async Task Generate_IncompleteResponse_IsAFailure(string finishReason, LlmErrorKind expected)
-    {
-        var handler = new StubHttpHandler().Respond(HttpStatusCode.OK, Completion("""{"findings":[""", finishReason: finishReason));
-
-        var ex = await Assert.ThrowsAsync<LlmProviderException>(() => CreateProvider(handler).GenerateAsync(Request, Ct));
-
-        Assert.Equal(expected, ex.Kind);
-    }
-
-    [Fact]
-    public async Task Generate_EmptyContent_IsMalformed()
-    {
-        var handler = new StubHttpHandler().Respond(HttpStatusCode.OK, Completion(content: ""));
-
-        var ex = await Assert.ThrowsAsync<LlmProviderException>(() => CreateProvider(handler).GenerateAsync(Request, Ct));
-
-        Assert.Equal(LlmErrorKind.MalformedResponse, ex.Kind);
-    }
-
-    [Theory]
-    [InlineData(HttpStatusCode.Unauthorized, LlmErrorKind.Authentication)]
-    [InlineData(HttpStatusCode.Forbidden, LlmErrorKind.PermissionDenied)]
-    [InlineData(HttpStatusCode.NotFound, LlmErrorKind.ModelNotFound)]
-    [InlineData(HttpStatusCode.BadRequest, LlmErrorKind.InvalidRequest)]
-    public async Task Generate_NonTransientErrors_AreMapped_AndNeverRetried(HttpStatusCode status, LlmErrorKind expected)
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task Generate_NonTransientErrors_AreNeverRetried_WithTheDefaultRetryPolicy(HttpStatusCode status)
     {
         var handler = new StubHttpHandler().Respond(status, Error("Something is wrong."));
-
-        // Default SDK retry policy: non-transient failures must not be retried.
         var provider = new OpenAiProvider(ApiKey, options: new OpenAiProviderOptions { HttpClient = new HttpClient(handler) });
-        var ex = await Assert.ThrowsAsync<LlmProviderException>(() => provider.GenerateAsync(Request, Ct));
 
-        Assert.Equal(expected, ex.Kind);
+        await Assert.ThrowsAsync<LlmProviderException>(() => provider.GenerateAsync(Request, Ct));
+
         Assert.Single(handler.Requests);
     }
 
@@ -149,54 +125,6 @@ public sealed class OpenAiProviderTests
 
         Assert.Equal("""{"findings":[]}""", response.Text);
         Assert.Equal(2, handler.Requests.Count);
-    }
-
-    [Theory]
-    [InlineData(HttpStatusCode.TooManyRequests, LlmErrorKind.RateLimited)]
-    [InlineData(HttpStatusCode.InternalServerError, LlmErrorKind.ServiceUnavailable)]
-    public async Task Generate_TransientErrorsAfterRetries_AreMapped(HttpStatusCode status, LlmErrorKind expected)
-    {
-        var handler = new StubHttpHandler().Respond(status, Error("Try later."));
-
-        var ex = await Assert.ThrowsAsync<LlmProviderException>(() => CreateProvider(handler, maxRetries: 0).GenerateAsync(Request, Ct));
-
-        Assert.Equal(expected, ex.Kind);
-    }
-
-    [Fact]
-    public async Task Generate_ErrorMessages_NeverContainTheApiKey()
-    {
-        var handler = new StubHttpHandler()
-            .Respond(HttpStatusCode.Unauthorized, Error($"Incorrect API key provided: {ApiKey}."))
-            .Respond(HttpStatusCode.BadRequest, Error($"Echo of {ApiKey} in a validation error."));
-
-        var auth = await Assert.ThrowsAsync<LlmProviderException>(() => CreateProvider(handler).GenerateAsync(Request, Ct));
-        var invalid = await Assert.ThrowsAsync<LlmProviderException>(() => CreateProvider(handler).GenerateAsync(Request, Ct));
-
-        Assert.DoesNotContain(ApiKey, auth.Message, StringComparison.Ordinal);
-        Assert.Contains(OpenAiProvider.ApiKeyVariable, auth.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain(ApiKey, invalid.Message, StringComparison.Ordinal);
-        Assert.Contains("[redacted]", invalid.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Generate_NetworkFailure_IsMapped()
-    {
-        var handler = new StubHttpHandler().Throw(new HttpRequestException("No such host is known."));
-
-        var ex = await Assert.ThrowsAsync<LlmProviderException>(() => CreateProvider(handler, maxRetries: 0).GenerateAsync(Request, Ct));
-
-        Assert.Equal(LlmErrorKind.Network, ex.Kind);
-    }
-
-    [Fact]
-    public async Task Generate_Cancellation_Propagates()
-    {
-        using var cancelled = new CancellationTokenSource();
-        await cancelled.CancelAsync();
-        var handler = new StubHttpHandler().Respond(HttpStatusCode.OK, Completion("{}"));
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => CreateProvider(handler).GenerateAsync(Request, cancelled.Token));
     }
 
     internal static string Completion(string? content, string? refusal = null, string finishReason = "stop", string model = "gpt-6.2-astra") =>
