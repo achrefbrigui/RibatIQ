@@ -8,4 +8,4 @@ Console.CancelKeyPress += (_, e) =>
     cancellation.Cancel();
 };
 
-return await RibatCli.InvokeAsync(args, Console.Out, Console.Error, cancellation.Token).ConfigureAwait(false);
+return await RibatCli.InvokeAsync(args, CliContext.FromProcess(), cancellation.Token).ConfigureAwait(false);
