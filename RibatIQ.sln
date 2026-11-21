@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RibatIQ.IntegrationTests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RibatIQ.Domain.Tests", "tests\RibatIQ.Domain.Tests\RibatIQ.Domain.Tests.csproj", "{DD592F0C-3884-4EA8-8441-13EB7C140F16}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RibatIQ.Application.Tests", "tests\RibatIQ.Application.Tests\RibatIQ.Application.Tests.csproj", "{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -101,6 +103,18 @@ Global
 		{DD592F0C-3884-4EA8-8441-13EB7C140F16}.Release|x64.Build.0 = Release|Any CPU
 		{DD592F0C-3884-4EA8-8441-13EB7C140F16}.Release|x86.ActiveCfg = Release|Any CPU
 		{DD592F0C-3884-4EA8-8441-13EB7C140F16}.Release|x86.Build.0 = Release|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Debug|x64.Build.0 = Debug|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Debug|x86.Build.0 = Debug|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Release|x64.ActiveCfg = Release|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Release|x64.Build.0 = Release|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Release|x86.ActiveCfg = Release|Any CPU
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -112,5 +126,6 @@ Global
 		{B3BCAF8C-75BB-4292-A697-892977DE29E9} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A47F4097-7196-452F-9102-12C27B6EDC21} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{DD592F0C-3884-4EA8-8441-13EB7C140F16} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{B53C71BB-BA4D-43CA-A9A0-56A9F99028C5} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
