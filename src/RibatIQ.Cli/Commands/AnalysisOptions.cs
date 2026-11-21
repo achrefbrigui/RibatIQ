@@ -162,9 +162,22 @@ internal sealed class AnalysisOptions
         await WriteVerboseAsync(parseResult, context, settings).ConfigureAwait(false);
         await WriteNotYetAppliedWarningsAsync(parseResult, context, settings).ConfigureAwait(false);
 
+        if (settings.AiEnabled)
+        {
+            // Privacy notice before anything is sent: users must know their code leaves the machine.
+            await context.Error.WriteLineAsync(
+                $"Note: AI analysis is enabled. Excerpts of the analyzed source code will be sent to {settings.Provider} " +
+                $"(model: {settings.Model ?? "provider default"}). Use --no-ai to keep the code on this machine.").ConfigureAwait(false);
+        }
+
         try
         {
             return await execute(settings).ConfigureAwait(false);
+        }
+        catch (ConfigurationException ex)
+        {
+            await context.Error.WriteLineAsync($"Configuration error: {ex.Message}").ConfigureAwait(false);
+            return ExitCodes.InvalidUsage;
         }
         catch (InvalidInputException ex)
         {

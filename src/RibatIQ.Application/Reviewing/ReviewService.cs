@@ -1,5 +1,6 @@
 using System.Globalization;
 
+using RibatIQ.Application.Ai;
 using RibatIQ.Application.Analysis;
 using RibatIQ.Application.Configuration;
 using RibatIQ.Application.Sources;
@@ -21,8 +22,17 @@ public sealed class ReviewService
     private readonly TimeProvider _timeProvider;
     private readonly string _toolVersion;
     private readonly int _maxFiles;
+    private readonly ILlmProviderFactory? _llmProviders;
+    private readonly AiAnalyzer _aiAnalyzer;
 
-    public ReviewService(IGitClient git, IStaticAnalyzer analyzer, TimeProvider timeProvider, string toolVersion, int maxFiles = DefaultMaxFiles)
+    public ReviewService(
+        IGitClient git,
+        IStaticAnalyzer analyzer,
+        TimeProvider timeProvider,
+        string toolVersion,
+        int maxFiles = DefaultMaxFiles,
+        ILlmProviderFactory? llmProviders = null,
+        AiAnalyzer? aiAnalyzer = null)
     {
         ArgumentNullException.ThrowIfNull(git);
         ArgumentNullException.ThrowIfNull(analyzer);
@@ -35,10 +45,13 @@ public sealed class ReviewService
         _timeProvider = timeProvider;
         _toolVersion = toolVersion;
         _maxFiles = maxFiles;
+        _llmProviders = llmProviders;
+        _aiAnalyzer = aiAnalyzer ?? new AiAnalyzer();
     }
 
     /// <exception cref="InvalidInputException">Not a repository, unknown revision, or missing history.</exception>
-    /// <exception cref="OperationFailedException">Git failed, or AI analysis was requested but is not available.</exception>
+    /// <exception cref="Configuration.ConfigurationException">AI credentials are missing.</exception>
+    /// <exception cref="OperationFailedException">Git failed, or AI analysis is unavailable or failed.</exception>
     public async Task<ReviewOutcome> RunAsync(
         ReviewRequest request, RibatSettings settings, string workingDirectory, CancellationToken cancellationToken)
     {
@@ -46,12 +59,8 @@ public sealed class ReviewService
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
 
-        if (settings.AiEnabled)
-        {
-            throw new OperationFailedException(
-                $"AI analysis ({settings.Provider}) is not available in this build yet. " +
-                "Run with --no-ai or remove the provider setting to run static analysis only.");
-        }
+        // Resolve the provider first so missing credentials fail before any work is done.
+        var provider = AiProviders.Resolve(settings, _llmProviders);
 
         var startedAt = _timeProvider.GetUtcNow();
         var warnings = new List<string>();
@@ -97,18 +106,27 @@ public sealed class ReviewService
         var analysis = await _analyzer.AnalyzeAsync(documents, cancellationToken).ConfigureAwait(false);
         warnings.AddRange(analysis.Warnings);
 
-        var (kept, dropped) = DiffLocationValidator.KeepChangedLines(analysis.Findings, changes);
+        AiAnalysisResult? ai = null;
+        if (provider is not null)
+        {
+            ai = await _aiAnalyzer.AnalyzeReviewAsync(provider, documents, changes, request.Range, cancellationToken)
+                .ConfigureAwait(false);
+            warnings.AddRange(ai.Warnings);
+        }
+
+        // AI findings were already checked against the changed lines; validating them again is a cheap safety net.
+        var (kept, dropped) = DiffLocationValidator.KeepChangedLines([.. analysis.Findings, .. ai?.Findings ?? []], changes);
 
         var result = new AnalysisResult(
             AnalysisKind.Review,
             request.Range,
             FindingDeduplicator.Deduplicate(kept),
-            AnalysisMetadata.WithoutAi(_toolVersion),
+            AiProviders.Metadata(_toolVersion, ai),
             startedAt,
             _timeProvider.GetUtcNow(),
             warnings);
 
-        return new ReviewOutcome(result, allChanges.Count, documents.Count, dropped, _analyzer.Coverage);
+        return new ReviewOutcome(result, allChanges.Count, documents.Count, dropped, _analyzer.Coverage, ai);
     }
 }
 
@@ -118,5 +136,11 @@ public sealed class ReviewService
 /// <param name="ReviewedFileCount">Changed C# files analyzed.</param>
 /// <param name="FindingsOutsideChanges">Findings dropped because they are not on changed lines.</param>
 /// <param name="Coverage">What the static analysis covers.</param>
+/// <param name="Ai">AI analysis details, when it ran.</param>
 public sealed record ReviewOutcome(
-    AnalysisResult Result, int ChangedFileCount, int ReviewedFileCount, int FindingsOutsideChanges, string Coverage);
+    AnalysisResult Result,
+    int ChangedFileCount,
+    int ReviewedFileCount,
+    int FindingsOutsideChanges,
+    string Coverage,
+    AiAnalysisResult? Ai = null);
