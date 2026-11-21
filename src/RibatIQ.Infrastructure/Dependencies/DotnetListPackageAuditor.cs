@@ -8,6 +8,7 @@ using RibatIQ.Application.Rules;
 using RibatIQ.Domain.Findings;
 using RibatIQ.Domain.Results;
 using RibatIQ.Domain.Rules;
+using RibatIQ.Infrastructure.Processes;
 
 namespace RibatIQ.Infrastructure.Dependencies;
 
@@ -24,6 +25,11 @@ public sealed class DotnetListPackageAuditor : IDependencyAuditor
     public static readonly ReviewRuleId VulnerablePackage = DependencyAudit.VulnerablePackageRule;
 
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(5);
+
+    /// <summary>Largest <c>dotnet list package</c> output read, in characters.</summary>
+    public const int MaxOutputChars = 16 * 1024 * 1024;
+
+    private const int MaxErrorChars = 64 * 1024;
 
     private readonly RuleCatalog _catalog;
     private readonly string _dotnet;
@@ -70,6 +76,10 @@ public sealed class DotnetListPackageAuditor : IDependencyAuditor
             catch (TimeoutException)
             {
                 return Failed(string.Create(CultureInfo.InvariantCulture, $"dotnet list package did not finish within {_timeout.TotalMinutes:0} minutes."), findings, warnings);
+            }
+            catch (FormatException ex)
+            {
+                return Failed($"{ex.Message}.", findings, warnings);
             }
 
             ListPackageReport report;
@@ -149,13 +159,19 @@ public sealed class DotnetListPackageAuditor : IDependencyAuditor
         using var process = Process.Start(startInfo) ?? throw new Win32Exception("dotnet could not be started.");
         process.StandardInput.Close();
 
-        var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
-        var error = process.StandardError.ReadToEndAsync(timeout.Token);
+        var output = BoundedOutput.ReadAsync(process.StandardOutput, MaxOutputChars, timeout.Token);
+        var error = BoundedOutput.ReadAsync(process.StandardError, MaxErrorChars, timeout.Token);
 
         try
         {
             await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
-            return new RunResult(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
+            var (outputText, outputExceeded) = await output.ConfigureAwait(false);
+            await error.ConfigureAwait(false);
+
+            // Too much output is reported as a format error: the check fails, nothing is guessed from a prefix.
+            return outputExceeded
+                ? throw new FormatException(string.Create(CultureInfo.InvariantCulture, $"dotnet list package produced more than {MaxOutputChars:N0} characters of output"))
+                : new RunResult(process.ExitCode, outputText);
         }
         catch (OperationCanceledException)
         {
@@ -177,5 +193,5 @@ public sealed class DotnetListPackageAuditor : IDependencyAuditor
         }
     }
 
-    private sealed record RunResult(int ExitCode, string Output, string Error);
+    private sealed record RunResult(int ExitCode, string Output);
 }

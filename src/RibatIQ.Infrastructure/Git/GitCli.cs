@@ -1,9 +1,11 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 
 using RibatIQ.Application;
 using RibatIQ.Application.Reviewing;
+using RibatIQ.Infrastructure.Processes;
 
 namespace RibatIQ.Infrastructure.Git;
 
@@ -17,14 +19,22 @@ public sealed class GitCli : IGitClient
         "The repository is a shallow clone, so the history needed for this revision may be missing. " +
         "Fetch more history (for example 'git fetch --unshallow', or 'fetch-depth: 0' with actions/checkout).";
 
+    /// <summary>Largest Git output read, in characters (diffs and file contents).</summary>
+    public const int MaxOutputChars = 64 * 1024 * 1024;
+
+    private const int MaxErrorChars = 64 * 1024;
+
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
 
     private readonly string _executable;
     private readonly TimeSpan _timeout;
+    private readonly int _maxOutputChars;
 
-    public GitCli(string executable = "git", TimeSpan? timeout = null)
+    public GitCli(string executable = "git", TimeSpan? timeout = null, int maxOutputChars = MaxOutputChars)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(executable);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxOutputChars);
+        _maxOutputChars = maxOutputChars;
 
         _executable = executable;
         _timeout = timeout ?? DefaultTimeout;
@@ -94,7 +104,7 @@ public sealed class GitCli : IGitClient
             return null;
         }
 
-        return long.TryParse(fields[3], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var size)
+        return long.TryParse(fields[3], NumberStyles.None, CultureInfo.InvariantCulture, out var size)
             ? size
             : throw new OperationFailedException($"Git returned an unexpected size for '{path}'.");
     }
@@ -180,13 +190,23 @@ public sealed class GitCli : IGitClient
         {
             process.StandardInput.Close();
 
-            var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
-            var error = process.StandardError.ReadToEndAsync(timeout.Token);
+            var output = BoundedOutput.ReadAsync(process.StandardOutput, _maxOutputChars, timeout.Token);
+            var error = BoundedOutput.ReadAsync(process.StandardError, MaxErrorChars, timeout.Token);
 
             try
             {
                 await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
-                return new GitResult(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
+                var (outputText, outputExceeded) = await output.ConfigureAwait(false);
+                var errorText = (await error.ConfigureAwait(false)).Text;
+
+                if (outputExceeded)
+                {
+                    throw new OperationFailedException(string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Git produced more than {_maxOutputChars:N0} characters of output; the change set is too large to review."));
+                }
+
+                return new GitResult(process.ExitCode, outputText, errorText);
             }
             catch (OperationCanceledException)
             {
