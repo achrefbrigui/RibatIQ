@@ -16,5 +16,7 @@
   <ItemGroup>
     <!-- Analyzed as data by the tests, never compiled. -->
     <None Include="..\Fixtures\**\*" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Documented samples are tested so they cannot drift from the real configuration format. -->
+    <None Include="..\..\samples\**\*" LinkBase="Samples" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

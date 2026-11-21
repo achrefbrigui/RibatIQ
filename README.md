@@ -3,99 +3,164 @@
 **Open-source AI code intelligence for .NET.**
 *Built for developers who never stop improving. Guarding code. Growing intelligence.*
 
-> **Status: early development.** `scan` and `review` run deterministic static analysis and,
-> optionally, AI analysis with OpenAI or Anthropic. JSON reports and the `--fail-on` threshold are not available yet.
+RibatIQ is a command-line tool that reviews C# code. It combines deterministic static analysis
+(Roslyn) with optional AI analysis by the LLM provider of your choice (OpenAI or Anthropic), and
+reports findings for people (console) and for tools (JSON, CI exit codes).
+
+- **`ribat scan`** analyzes an existing solution, project or directory, with no pull request needed.
+- **`ribat review`** analyzes the changes between two Git revisions and reports only issues on changed lines.
+
+> RibatIQ reports likely issues. It does not prove that code is correct, secure or bug-free, and it
+> never modifies your source files.
 
 ## Requirements
 
-- .NET SDK 10.0.100 or later (pinned in `global.json`, rolls forward to the latest feature band).
+- .NET SDK 10.0.100 or later.
 - Git on the `PATH` for `ribat review`.
+- Optionally, an OpenAI or Anthropic API key for AI analysis.
 
-## Build and test
+## Installation
+
+RibatIQ is packaged as a .NET tool. Until it is published to NuGet, build and install it from source:
+
+```bash
+git clone https://github.com/achrefbrigui/RibatIQ.git
+dotnet pack RibatIQ/src/RibatIQ.Cli --configuration Release --output ribatiq-packages
+dotnet tool install --global RibatIQ.Cli --add-source ./ribatiq-packages
+ribat --version
+```
+
+Run these commands from the directory that contains the clone, not from inside it: the repository's
+`nuget.config` restricts package sources to nuget.org, which does not allow `--add-source`.
+
+To try it without installing: `dotnet run --project src/RibatIQ.Cli -- <command>`.
+
+## Quick start
+
+```bash
+# Static analysis of a solution (.sln/.slnx), a project (.csproj) or a directory
+ribat scan path/to/MySolution.sln
+
+# Review what the current branch changed since it diverged from origin/main
+ribat review --base origin/main
+
+# Same, with AI analysis and a JSON report, failing on high-severity findings
+export ANTHROPIC_API_KEY=...          # PowerShell: $env:ANTHROPIC_API_KEY = "..."
+ribat review --base origin/main --provider anthropic --format json --output ribatiq.json --fail-on high
+```
+
+## Commands and options
+
+```text
+ribat scan <path> [options]
+ribat review --base <revision> [--head <revision>] [options]
+ribat --help | --version
+```
+
+| Option | Description |
+|--------|-------------|
+| `--provider openai\|anthropic` | Enable AI analysis with this provider. |
+| `--model <id>` | Model to use (defaults: `gpt-6.2-astra`, `claude-opus-5-5`). |
+| `--no-ai` | Disable AI analysis; nothing is sent to a provider. |
+| `--format console\|json` | Report format (default `console`). |
+| `--output <file>` | Write the report to a file instead of standard output. |
+| `--fail-on none\|info\|low\|medium\|high\|critical` | Exit with code 1 when a finding is at or above this severity (default `none`). |
+| `--include <glob>` / `--exclude <glob>` | Files to analyze / skip (repeatable). `bin/`, `obj/` and `.git/` are always skipped. |
+| `--config <file>` | Configuration file (default: `ribatiq.json` in the current directory, if present). |
+| `--verbose` | Print the effective settings to standard error. |
+
+`review` compares `--head` (default `HEAD`) with its merge base with `--base`, like a pull request, and
+reads files at the `--head` revision rather than from the working tree. Run it inside the repository.
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Completed; no finding met the `--fail-on` threshold. |
+| `1` | Completed; at least one finding met the threshold. The report is always written first. |
+| `2` | Invalid usage, configuration or input (unknown option, missing file, unknown Git revision, missing API key...). |
+| `3` | Operational failure (Git or provider failure, malformed AI response, I/O error). Never reported as a clean result. |
+
+## What is analyzed
+
+**Deterministic analysis** (always on): sources are parsed in memory by Roslyn; nothing is built,
+restored or executed.
+
+| Rule | Finding |
+|------|---------|
+| `CSxxxx` | C# syntax errors. |
+| `RIQ1001` | Empty catch block (catch blocks with a comment are accepted). |
+| `RIQ1002` | `async void` method (event handlers excluded). |
+| `RIQ1003` | `throw ex;` resets the stack trace. |
+| `RIQ1004` | Possible hard-coded secret (the value is never printed). |
+
+**AI analysis** (opt-in): the model looks for actionable bugs, security, reliability, concurrency and
+design issues, and every finding it returns is validated before it is reported.
+
+| Provider | API key variable | Default model |
+|----------|------------------|---------------|
+| OpenAI | `OPENAI_API_KEY` | `gpt-6.2-astra` |
+| Anthropic | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
+
+See [Security and privacy](docs/security-and-privacy.md) for what is sent to providers and how model
+output is validated.
+
+## Configuration
+
+Settings come from, in order of precedence: command-line options, environment variables
+(`RIBATIQ_PROVIDER`, `RIBATIQ_MODEL`, `RIBATIQ_FAIL_ON`), the `ribatiq.json` file, then defaults.
+API keys are read only from the environment, never from configuration files.
+
+```json
+{
+  "version": 1,
+  "analysis": {
+    "exclude": ["**/Migrations/**", "**/*.g.cs"],
+    "failOn": "high"
+  },
+  "ai": {
+    "provider": "anthropic"
+  }
+}
+```
+
+See [Configuration](docs/configuration.md) and [`samples/ribatiq.json`](samples/ribatiq.json).
+
+## Using RibatIQ in CI
+
+```yaml
+- uses: actions/checkout@v7
+  with:
+    fetch-depth: 0          # review needs the history up to the merge base
+- uses: actions/setup-dotnet@v6
+  with:
+    dotnet-version: 10.0.x
+- run: ribat review --base origin/${{ github.base_ref }} --format json --output ribatiq.json --fail-on high
+```
+
+The JSON report (`schemaVersion` 1) contains the findings with stable IDs, a summary, the AI
+provider and usage, and a `gate` object with the threshold outcome.
+
+## Limitations
+
+- C# only. Diagnostics that need project references (types, overloads, nullability) are not reported yet:
+  sources are analyzed without building them.
+- Source files are found by convention (all `*.cs` under a project directory); explicit `Compile`
+  items in project files are not evaluated.
+- AI findings are heuristic. Their confidence score is the model's own estimate, not a probability.
+- There is no suppression or baseline mechanism yet; finding IDs are stable to make one possible.
+- Results are not published to pull requests yet.
+
+## Development
 
 ```bash
 dotnet build
 dotnet test
 ```
 
-Tests require no API keys and no network access beyond the initial NuGet restore. Provider adapters are
-tested against stubbed HTTP; opt-in live tests run only with `RIBATIQ_LIVE_TESTS=1` and the provider API key set
-(they are billed).
-
-## Run
-
-```bash
-dotnet run --project src/RibatIQ.Cli -- --help
-
-# Scan a solution (.sln/.slnx), a project (.csproj) or a directory
-dotnet run --project src/RibatIQ.Cli -- scan path/to/MySolution.sln
-
-# Review the changes of the current branch since it diverged from origin/main (run inside the repository)
-dotnet run --project src/RibatIQ.Cli -- review --base origin/main --head HEAD
-```
-
-Useful options: `--exclude <glob>` / `--include <glob>` (repeatable), `--config <file>`, `--verbose`.
-
-## What the analysis covers
-
-- **C# syntax errors** reported by the Roslyn parser.
-- **RibatIQ rules**: `RIQ1001` empty catch block, `RIQ1002` async void (event handlers excluded),
-  `RIQ1003` `throw ex;` losing the stack trace, `RIQ1004` possible hard-coded secret (the value is never printed).
-
-Sources are parsed in memory: nothing is built, restored or executed, and no file is modified.
-Diagnostics that need project references (types, overloads, nullability) are not reported yet.
-`review` reads files at the `--head` revision and reports only findings on lines changed since the
-merge base with `--base`. RibatIQ reports likely issues; it does not prove that code is correct or secure.
-
-## AI analysis (optional)
-
-AI analysis is **off by default**. Enable it by choosing a provider; the API key is read from the
-environment only (never from `ribatiq.json`):
-
-| Provider | Option | API key variable | Default model |
-|----------|--------|------------------|---------------|
-| OpenAI | `--provider openai` | `OPENAI_API_KEY` | `gpt-6.2-astra` |
-| Anthropic | `--provider anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
-
-```bash
-export ANTHROPIC_API_KEY=...        # PowerShell: $env:ANTHROPIC_API_KEY = "..."
-ribat review --base origin/main --provider anthropic
-ribat scan MySolution.sln --provider openai --model <model-id>
-```
-
-**Privacy:** when AI analysis is enabled, excerpts of your source code are sent to the provider. `review`
-sends only the changed lines plus surrounding context; `scan` sends whole files up to a size budget
-(skipped files are listed as warnings). RibatIQ prints a notice before sending anything; use `--no-ai`
-to keep code on your machine. Requests go to the providers' official endpoints; variables such as
-`ANTHROPIC_BASE_URL` are deliberately ignored so that where code is sent never changes silently.
-
-**Trust:** model output is treated as untrusted. A finding is kept only if it is valid JSON, points to a
-file and lines that were actually sent (and, for `review`, to changed lines). AI severity is capped at
-*high*, and the confidence score is a heuristic, not a probability. Repository content is framed as
-untrusted data in the prompt, so instructions hidden in code or comments are not followed. A provider
-failure, refusal or malformed response ends the run with exit code `3`, never with a clean report.
-
-## Exit codes
-
-| Code | Meaning |
-|------|---------|
-| `0` | Completed; no findings met the configured failure threshold. |
-| `1` | Completed; findings met the configured failure threshold. |
-| `2` | Invalid usage, configuration, or input. |
-| `3` | Operational failure (Git, LLM provider, I/O, ...). Never reported as a clean result. |
-
-## Project layout
-
-| Project | Responsibility |
-|---------|----------------|
-| `src/RibatIQ.Domain` | Findings, severities, result types. No external dependencies. |
-| `src/RibatIQ.Application` | Use cases and ports (LLM provider, Git, discovery, reporting). Depends on Domain only. |
-| `src/RibatIQ.Infrastructure` | Adapters: OpenAI/Anthropic, Git, Roslyn, filesystem. |
-| `src/RibatIQ.Cli` | The `ribat` command: parsing, DI, console output, exit codes. |
-| `tests/RibatIQ.Application.Tests` | Unit tests for settings, globs, diff parsing and the scan/review workflows (with fakes). |
-| `tests/RibatIQ.Domain.Tests` | Unit tests for domain validation, fingerprints and result contracts. |
-| `tests/RibatIQ.IntegrationTests` | Discovery, Roslyn and Git adapters, end-to-end `scan`/`review`, architecture guards. |
-| `tests/Fixtures` | Sample inputs with intentional defects, analyzed (never built) by the tests. |
+Tests need no API keys and no network access beyond the NuGet restore; provider adapters are tested
+against stubbed HTTP. Opt-in live tests run with `RIBATIQ_LIVE_TESTS=1` and an API key (they are billed).
+See [Architecture](docs/architecture.md) and [Contributing](CONTRIBUTING.md).
 
 ## License
 
