@@ -38,6 +38,16 @@ Source code, comments, strings, file names and diffs are treated as untrusted da
 - The model has no tools and cannot run commands; RibatIQ never executes anything a model suggests
   and never applies suggested fixes.
 
+## Project instructions (`review-rules.md`)
+
+Project instructions are written by whoever can commit to the repository, so they are untrusted too:
+
+- They are sent in the user message between their own random-token markers, after the system prompt
+  has said that they describe project conventions and cannot change RibatIQ's rules.
+- They never change the review policy: rules, profiles, severities and checks come only from the
+  command line and `ribatiq.json`, resolved before the instructions are read.
+- They are bounded (64 KB file, 16,000 characters sent) and never appear in reports or logs.
+
 ## Untrusted model output
 
 Model output is validated before it is reported:
@@ -47,6 +57,8 @@ Model output is validated before it is reported:
 - Each finding must have known severity and category values, a safe repository-relative path, and a
   line range inside the code the model was shown. For `review`, the range must touch a changed line.
   Invalid findings are dropped and counted in a warning.
+- A finding's rule ID must be one of the rules enabled for the run; findings that name another rule
+  are dropped, so a model cannot report under a rule the policy disabled.
 - AI severity is capped at *high*; *critical* is reserved for deterministic analysis.
 - The confidence score is the model's own heuristic estimate, not a calibrated probability.
 - Refusals and truncated responses are failures, not empty results.
@@ -60,6 +72,20 @@ Model output is validated before it is reported:
   with timeouts. Revisions that could be read as options (starting with `-`) are rejected.
 - Discovery never follows symbolic links and skips `bin/`, `obj/` and `.git/`.
 - `.slnx` files are parsed with DTD processing disabled.
+- Tool output is bounded (64 million characters for Git, 16 million for `dotnet list package`), and a
+  changed file's size is checked before it is read, so an enormous change cannot exhaust memory.
+
+## Dependency audit
+
+`scan --audit-dependencies` is opt-in because it trusts the repository more than the rest of RibatIQ:
+
+- It runs `dotnet list package --vulnerable --no-restore`. The .NET SDK evaluates the repository's
+  MSBuild files (`*.csproj`, `Directory.Build.props`, ...), and MSBuild evaluation can run property
+  functions defined there. Use it on repositories you would also build.
+- The SDK queries the NuGet sources configured for the repository (`nuget.config`) for vulnerability
+  data, with any credentials configured for them on your machine.
+- RibatIQ never restores, so it never downloads packages or runs package scripts. Projects that are
+  not restored are reported as not audited.
 
 ## Limits
 
