@@ -3,13 +3,13 @@
 **Open-source AI code intelligence for .NET.**
 *Built for developers who never stop improving. Guarding code. Growing intelligence.*
 
-> **Status: early development (Milestone 1 — skeleton).**
-> Only `ribat --help` and `ribat --version` are implemented. `scan` and `review` are planned and
-> do not exist yet.
+> **Status: early development.** `scan` and `review` run deterministic static analysis.
+> AI analysis (OpenAI, Anthropic), JSON reports and the `--fail-on` threshold are not available yet.
 
 ## Requirements
 
 - .NET SDK 10.0.100 or later (pinned in `global.json`, rolls forward to the latest feature band).
+- Git on the `PATH` for `ribat review`.
 
 ## Build and test
 
@@ -24,8 +24,26 @@ Tests require no API keys and no network access beyond the initial NuGet restore
 
 ```bash
 dotnet run --project src/RibatIQ.Cli -- --help
-dotnet run --project src/RibatIQ.Cli -- --version
+
+# Scan a solution (.sln/.slnx), a project (.csproj) or a directory
+dotnet run --project src/RibatIQ.Cli -- scan path/to/MySolution.sln
+
+# Review the changes of the current branch since it diverged from origin/main (run inside the repository)
+dotnet run --project src/RibatIQ.Cli -- review --base origin/main --head HEAD
 ```
+
+Useful options: `--exclude <glob>` / `--include <glob>` (repeatable), `--config <file>`, `--verbose`.
+
+## What the analysis covers
+
+- **C# syntax errors** reported by the Roslyn parser.
+- **RibatIQ rules**: `RIQ1001` empty catch block, `RIQ1002` async void (event handlers excluded),
+  `RIQ1003` `throw ex;` losing the stack trace, `RIQ1004` possible hard-coded secret (the value is never printed).
+
+Sources are parsed in memory: nothing is built, restored or executed, and no file is modified.
+Diagnostics that need project references (types, overloads, nullability) are not reported yet.
+`review` reads files at the `--head` revision and reports only findings on lines changed since the
+merge base with `--base`. RibatIQ reports likely issues; it does not prove that code is correct or secure.
 
 ## Exit codes
 
@@ -44,9 +62,10 @@ dotnet run --project src/RibatIQ.Cli -- --version
 | `src/RibatIQ.Application` | Use cases and ports (LLM provider, Git, discovery, reporting). Depends on Domain only. |
 | `src/RibatIQ.Infrastructure` | Adapters: OpenAI/Anthropic, Git, Roslyn, filesystem. |
 | `src/RibatIQ.Cli` | The `ribat` command: parsing, DI, console output, exit codes. |
-| `tests/RibatIQ.Application.Tests` | Unit tests for settings resolution, fail policy and request validation. |
+| `tests/RibatIQ.Application.Tests` | Unit tests for settings, globs, diff parsing and the scan/review workflows (with fakes). |
 | `tests/RibatIQ.Domain.Tests` | Unit tests for domain validation, fingerprints and result contracts. |
-| `tests/RibatIQ.IntegrationTests` | End-to-end CLI tests and dependency-direction guards. |
+| `tests/RibatIQ.IntegrationTests` | Discovery, Roslyn and Git adapters, end-to-end `scan`/`review`, architecture guards. |
+| `tests/Fixtures` | Sample inputs with intentional defects, analyzed (never built) by the tests. |
 
 ## License
 

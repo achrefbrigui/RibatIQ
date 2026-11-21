@@ -50,9 +50,15 @@ internal sealed class TempDirectory : IDisposable
     {
         try
         {
+            // Git stores objects as read-only files, which Directory.Delete refuses to remove on Windows.
+            foreach (var file in Directory.EnumerateFiles(Path, "*", SearchOption.AllDirectories))
+            {
+                File.SetAttributes(file, FileAttributes.Normal);
+            }
+
             Directory.Delete(Path, recursive: true);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best effort: a leftover temp directory must not fail a test.
         }

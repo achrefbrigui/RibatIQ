@@ -22,13 +22,20 @@ public sealed class CliCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task Help_ListsOnlyWiredCommands()
+    public async Task Help_ListsWiredCommands_AndHidesOptionsWithoutBackingFeature()
     {
         var result = await RunAsync("--help");
 
         Assert.Equal(ExitCodes.Success, result.ExitCode);
         Assert.Contains("scan", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("review", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("review", result.Output, StringComparison.Ordinal);
+
+        var scanHelp = (await RunAsync("scan", "--help")).Output;
+        Assert.Contains("--no-ai", scanHelp, StringComparison.Ordinal);
+        Assert.Contains("--exclude", scanHelp, StringComparison.Ordinal);
+        Assert.DoesNotContain("--provider", scanHelp, StringComparison.Ordinal);
+        Assert.DoesNotContain("--fail-on", scanHelp, StringComparison.Ordinal);
+        Assert.DoesNotContain("--format", scanHelp, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -84,12 +91,12 @@ public sealed class CliCommandTests : IDisposable
         Assert.Equal(ExitCodes.InvalidUsage, (await RunAsync("scan")).ExitCode);
 
     [Fact]
-    public async Task Review_WithValidRevisions_ReportsEngineUnavailableForRange()
+    public async Task Review_OutsideGitRepository_IsInvalidUsage()
     {
         var result = await RunAsync("review", "--base", "origin/main");
 
-        Assert.Equal(ExitCodes.OperationalFailure, result.ExitCode);
-        Assert.Contains("origin/main...HEAD", result.Error, StringComparison.Ordinal);
+        Assert.Equal(ExitCodes.InvalidUsage, result.ExitCode);
+        Assert.Contains("not inside a Git repository", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
