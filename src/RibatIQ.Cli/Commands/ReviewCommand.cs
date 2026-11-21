@@ -65,7 +65,8 @@ internal static class ReviewCommand
                             outcome.ReviewedFileCount,
                             ChangedFileCount: outcome.ChangedFileCount,
                             FindingsOutsideChanges: outcome.FindingsOutsideChanges),
-                        outcome.Ai);
+                        outcome.Ai,
+                        settings.FailOn);
 
                     return await options.PublishAsync(report, parseResult, context, cancellationToken).ConfigureAwait(false);
                 },

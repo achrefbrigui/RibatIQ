@@ -67,6 +67,7 @@ public sealed class JsonReportWriter : IReportWriter
             new SummaryDocument(
                 summary.Total, summary.Critical, summary.High, summary.Medium, summary.Low, summary.Info,
                 summary.StaticAnalysis, summary.Ai),
+            new GateDocument(report.FailOn.ToString(), report.FailingFindings, report.ThresholdExceeded),
             result.Findings.Select(ToDocument).ToArray(),
             result.Warnings.ToArray());
     }
@@ -98,8 +99,12 @@ public sealed class JsonReportWriter : IReportWriter
         AiDocument Ai,
         StatisticsDocument Statistics,
         SummaryDocument Summary,
+        GateDocument Gate,
         FindingDocument[] Findings,
         string[] Warnings);
+
+    /// <summary>Outcome of the failure threshold: <c>failOn</c> is <c>none</c> or a severity.</summary>
+    internal sealed record GateDocument(string FailOn, int FailingFindings, bool ThresholdExceeded);
 
     internal sealed record ToolDocument(string Name, string Version);
 

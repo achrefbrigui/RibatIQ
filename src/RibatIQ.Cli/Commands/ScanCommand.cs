@@ -57,7 +57,8 @@ internal static class ScanCommand
                         ReportPublisher.DisplayPath(request.TargetPath, context.CurrentDirectory),
                         outcome.Coverage,
                         new ReportStatistics(outcome.FileCount, ProjectCount: outcome.ProjectCount),
-                        outcome.Ai);
+                        outcome.Ai,
+                        settings.FailOn);
 
                     return await options.PublishAsync(report, parseResult, context, cancellationToken).ConfigureAwait(false);
                 },

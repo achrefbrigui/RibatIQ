@@ -47,7 +47,7 @@ internal sealed class AnalysisOptions
 
     public Option<string> FailOn { get; } = new("--fail-on")
     {
-        Description = "Exit with code 1 when a finding at or above this severity is reported.",
+        Description = "Exit with code 1 when a finding at or above this severity is reported, after the report is written. Default: none.",
     };
 
     public Option<string[]> Include { get; } = new("--include")
@@ -70,14 +70,15 @@ internal sealed class AnalysisOptions
         Provider.AcceptOnlyFromAmong([.. LlmProviders.All]);
         Format.AcceptOnlyFromAmong(ConsoleFormat, JsonFormat);
         FailOn.AcceptOnlyFromAmong([.. FailPolicy.AcceptedValues]);
-
-        // Parsed and validated, but hidden from --help until the failure threshold is applied.
-        FailOn.Hidden = true;
     }
 
-    /// <summary>Writes the report in the requested format and destination, then returns the exit code.</summary>
+    /// <summary>
+    /// Writes the report in the requested format and destination, then applies the failure threshold.
+    /// The threshold never prevents the report from being produced.
+    /// </summary>
     public async Task<int> PublishAsync(AnalysisReport report, ParseResult parseResult, CliContext context, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(parseResult);
 
         await ReportPublisher.PublishAsync(
@@ -87,7 +88,7 @@ internal sealed class AnalysisOptions
             context,
             cancellationToken).ConfigureAwait(false);
 
-        return ExitCodes.Success;
+        return report.ThresholdExceeded ? ExitCodes.FindingsAtOrAboveThreshold : ExitCodes.Success;
     }
 
     public void AddTo(Command command)
@@ -173,7 +174,6 @@ internal sealed class AnalysisOptions
         }
 
         await WriteVerboseAsync(parseResult, context, settings).ConfigureAwait(false);
-        await WriteNotYetAppliedWarningsAsync(context, settings).ConfigureAwait(false);
 
         if (settings.AiEnabled)
         {
@@ -201,16 +201,6 @@ internal sealed class AnalysisOptions
         {
             await context.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
             return ExitCodes.OperationalFailure;
-        }
-    }
-
-    /// <summary>The fail-on threshold is accepted but not applied yet; say so instead of ignoring it silently.</summary>
-    private static async Task WriteNotYetAppliedWarningsAsync(CliContext context, RibatSettings settings)
-    {
-        if (settings.FailOn.Threshold is not null)
-        {
-            await context.Error.WriteLineAsync(
-                $"Warning: the fail-on threshold ({settings.FailOn}) is not applied yet; findings do not change the exit code.").ConfigureAwait(false);
         }
     }
 

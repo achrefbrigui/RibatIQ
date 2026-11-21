@@ -1,4 +1,5 @@
 using RibatIQ.Application.Ai;
+using RibatIQ.Application.Configuration;
 using RibatIQ.Domain.Results;
 
 namespace RibatIQ.Application.Reporting;
@@ -20,12 +21,24 @@ public sealed record ReportStatistics(
 /// <param name="Coverage">What the deterministic analysis covers.</param>
 /// <param name="Statistics">Counts describing what was analyzed.</param>
 /// <param name="Ai">AI analysis details, when it ran.</param>
+/// <param name="FailPolicy">Failure threshold; <see langword="null"/> means <see cref="FailPolicy.Never"/>.</param>
 public sealed record AnalysisReport(
     AnalysisResult Result,
     string DisplayTarget,
     string Coverage,
     ReportStatistics Statistics,
-    AiAnalysisResult? Ai);
+    AiAnalysisResult? Ai,
+    FailPolicy? FailPolicy = null)
+{
+    /// <summary>The failure threshold in effect.</summary>
+    public FailPolicy FailOn => FailPolicy ?? FailPolicy.Never;
+
+    /// <summary>Findings at or above the threshold.</summary>
+    public int FailingFindings => FailOn.CountFailing(Result.Summary);
+
+    /// <summary>Whether the run fails the threshold (exit code 1). Evaluated after the report is produced.</summary>
+    public bool ThresholdExceeded => FailingFindings > 0;
+}
 
 /// <summary>Renders an <see cref="AnalysisReport"/> in one output format.</summary>
 public interface IReportWriter

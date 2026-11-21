@@ -74,6 +74,13 @@ internal sealed class ConsoleReportWriter : IReportWriter
 
         await writer.WriteLineAsync($"Coverage: {report.Coverage}.").ConfigureAwait(false);
         await writer.WriteLineAsync(Disclaimer).ConfigureAwait(false);
+
+        if (report.FailOn.Threshold is not null)
+        {
+            await writer.WriteLineAsync(report.ThresholdExceeded
+                ? string.Create(CultureInfo.InvariantCulture, $"Result: FAILED - {report.FailingFindings} finding(s) at or above '{report.FailOn}' (fail-on).")
+                : $"Result: PASSED - no finding at or above '{report.FailOn}' (fail-on).").ConfigureAwait(false);
+        }
     }
 
     private static string ScopeLine(AnalysisReport report)

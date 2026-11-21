@@ -22,7 +22,7 @@ public sealed class CliCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task Help_ListsWiredCommands_AndHidesOptionsWithoutBackingFeature()
+    public async Task Help_ListsCommandsAndOptions()
     {
         var result = await RunAsync("--help");
 
@@ -36,7 +36,7 @@ public sealed class CliCommandTests : IDisposable
         Assert.Contains("--provider", scanHelp, StringComparison.Ordinal);
         Assert.Contains("--model", scanHelp, StringComparison.Ordinal);
         Assert.Contains("ANTHROPIC_API_KEY", scanHelp, StringComparison.Ordinal);
-        Assert.DoesNotContain("--fail-on", scanHelp, StringComparison.Ordinal);
+        Assert.Contains("--fail-on", scanHelp, StringComparison.Ordinal);
         Assert.Contains("--format", scanHelp, StringComparison.Ordinal);
         Assert.Contains("--output", scanHelp, StringComparison.Ordinal);
     }
