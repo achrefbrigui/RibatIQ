@@ -21,5 +21,14 @@
     <Version>0.1.0</Version>
     <!-- Keep the reported version stable (no "+commit" suffix). -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
+    <!-- Packaging: only the CLI is published (as a .NET tool); libraries are internal to it. -->
+    <IsPackable>false</IsPackable>
+    <Authors>RibatIQ contributors</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/achrefbrigui/RibatIQ</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/achrefbrigui/RibatIQ.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>code-review;static-analysis;roslyn;csharp;dotnet;llm;openai;anthropic;dotnet-tool</PackageTags>
   </PropertyGroup>
 </Project>

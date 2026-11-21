@@ -25,11 +25,13 @@ RibatIQ is packaged as a .NET tool. Until it is published to NuGet, build and in
 
 ```bash
 git clone https://github.com/achrefbrigui/RibatIQ.git
-cd RibatIQ
-dotnet pack src/RibatIQ.Cli --configuration Release --output artifacts
-dotnet tool install --global RibatIQ.Cli --add-source ./artifacts
+dotnet pack RibatIQ/src/RibatIQ.Cli --configuration Release --output ribatiq-packages
+dotnet tool install --global RibatIQ.Cli --add-source ./ribatiq-packages
 ribat --version
 ```
+
+Run these commands from the directory that contains the clone, not from inside it: the repository's
+`nuget.config` restricts package sources to nuget.org, which does not allow `--add-source`.
 
 To try it without installing: `dotnet run --project src/RibatIQ.Cli -- <command>`.
 
