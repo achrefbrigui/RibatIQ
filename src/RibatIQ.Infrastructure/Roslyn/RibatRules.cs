@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis;
 
-using RibatIQ.Domain.Findings;
+using RibatIQ.Domain.Rules;
 
 namespace RibatIQ.Infrastructure.Roslyn;
 
@@ -29,14 +29,20 @@ internal static class RibatRules
         "Possible hard-coded secret",
         "'{0}' is assigned a string literal that looks like a secret. Load secrets from configuration or a secret store.");
 
-    /// <summary>Severity and category of each rule's findings.</summary>
-    public static IReadOnlyDictionary<string, (FindingSeverity Severity, FindingCategory Category)> Classification { get; } =
-        new Dictionary<string, (FindingSeverity, FindingCategory)>(StringComparer.Ordinal)
+    /// <summary>Catalogue rule for C# syntax errors reported by the parser (any <c>CSxxxx</c> error).</summary>
+    public static readonly ReviewRuleId SyntaxError = ReviewRuleId.Parse("CSHARP.SYNTAX.ERROR");
+
+    /// <summary>
+    /// The catalogue rule each analyzer diagnostic belongs to. Severity, category and title come from the
+    /// rule catalogue, so they are defined in one place.
+    /// </summary>
+    public static IReadOnlyDictionary<string, ReviewRuleId> CatalogueRules { get; } =
+        new Dictionary<string, ReviewRuleId>(StringComparer.Ordinal)
         {
-            [EmptyCatchBlock.Id] = (FindingSeverity.Medium, FindingCategory.Correctness),
-            [AsyncVoid.Id] = (FindingSeverity.Medium, FindingCategory.BestPractices),
-            [RethrowLosesStackTrace.Id] = (FindingSeverity.Low, FindingCategory.Correctness),
-            [HardcodedSecret.Id] = (FindingSeverity.High, FindingCategory.Security),
+            [EmptyCatchBlock.Id] = ReviewRuleId.Parse("DOTNET.EXCEPTIONS.EMPTY_CATCH"),
+            [AsyncVoid.Id] = ReviewRuleId.Parse("DOTNET.ASYNC.ASYNC_VOID"),
+            [RethrowLosesStackTrace.Id] = ReviewRuleId.Parse("DOTNET.EXCEPTIONS.RETHROW_LOSES_STACK"),
+            [HardcodedSecret.Id] = ReviewRuleId.Parse("SECURITY.EXPOSED_SECRET"),
         };
 
     private static DiagnosticDescriptor Create(string id, string title, string messageFormat) =>

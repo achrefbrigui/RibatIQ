@@ -1,0 +1,381 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "CSHARP.SYNTAX.ERROR",
+      "title": "C# syntax error",
+      "category": "correctness",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "static-analysis",
+      "description": "The C# parser reports a syntax error; the file does not compile as written."
+    },
+    {
+      "id": "DOTNET.EXCEPTIONS.EMPTY_CATCH",
+      "title": "Empty catch block",
+      "category": "correctness",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "static-analysis",
+      "description": "A catch block with no statements and no comment silently swallows exceptions."
+    },
+    {
+      "id": "DOTNET.EXCEPTIONS.RETHROW_LOSES_STACK",
+      "title": "Rethrow loses the stack trace",
+      "category": "correctness",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "static-analysis",
+      "description": "'throw ex;' inside a catch block resets the exception's stack trace; 'throw;' preserves it."
+    },
+    {
+      "id": "DOTNET.ASYNC.ASYNC_VOID",
+      "title": "Async void method",
+      "category": "bestPractices",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "static-analysis",
+      "description": "An async void method that is not an event handler cannot be awaited and its exceptions crash the process."
+    },
+    {
+      "id": "SECURITY.EXPOSED_SECRET",
+      "title": "Possible hard-coded secret",
+      "category": "security",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "static-analysis",
+      "description": "A password, token, API key or similar secret is assigned a string literal in source code."
+    },
+    {
+      "id": "CORRECTNESS.NULL_REFERENCE",
+      "title": "Possible null reference",
+      "category": "correctness",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "A value that can be null in a reachable path is dereferenced, or a nullable annotation is contradicted by the code."
+    },
+    {
+      "id": "CORRECTNESS.LOGIC_ERROR",
+      "title": "Logic error",
+      "category": "correctness",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "A condition, calculation or control flow does not do what the surrounding code clearly intends."
+    },
+    {
+      "id": "CORRECTNESS.BOUNDARY_CONDITION",
+      "title": "Boundary or unexpected value",
+      "category": "correctness",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Off-by-one errors, invalid indexes, empty collections, overflow or unexpected input values are not handled."
+    },
+    {
+      "id": "CORRECTNESS.EXCEPTION_HANDLING",
+      "title": "Incorrect exception handling",
+      "category": "correctness",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Exceptions are caught too broadly, lost, misreported or leave state inconsistent."
+    },
+    {
+      "id": "CORRECTNESS.CONCURRENCY",
+      "title": "Concurrency issue",
+      "category": "correctness",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Shared state is accessed without proper synchronization, or a race condition or deadlock is evident in the code shown."
+    },
+    {
+      "id": "DOTNET.DISPOSAL.RESOURCE_LEAK",
+      "title": "Resource leak or incorrect disposal",
+      "category": "bestPractices",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "An IDisposable or IAsyncDisposable object (stream, connection, HttpClient handler...) is not disposed, disposed too early, or HttpClient is created per request."
+    },
+    {
+      "id": "DOTNET.ASYNC.UNAWAITED",
+      "title": "Unawaited task",
+      "category": "bestPractices",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "A Task is started and not awaited or observed, so failures are lost and ordering is not guaranteed."
+    },
+    {
+      "id": "DOTNET.ASYNC.BLOCKING_WAIT",
+      "title": "Blocking on asynchronous code",
+      "category": "bestPractices",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Task.Result, Task.Wait() or GetAwaiter().GetResult() blocks on asynchronous work, risking deadlocks and thread-pool starvation."
+    },
+    {
+      "id": "DOTNET.ASYNC.CANCELLATION",
+      "title": "Cancellation token not propagated",
+      "category": "bestPractices",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "An available CancellationToken is not passed to asynchronous calls that accept one."
+    },
+    {
+      "id": "PERFORMANCE.NPLUSONE",
+      "title": "N+1 queries or repeated external calls",
+      "category": "performance",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "A database query, HTTP call or other external call is issued once per item of a loop or collection."
+    },
+    {
+      "id": "PERFORMANCE.UNBOUNDED_QUERY",
+      "title": "Unbounded data retrieval",
+      "category": "performance",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "A query loads far more data than used, or has no pagination where the result set can grow without limit."
+    },
+    {
+      "id": "PERFORMANCE.LINQ_INEFFICIENT",
+      "title": "Inefficient LINQ or repeated enumeration",
+      "category": "performance",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "An IEnumerable is enumerated several times, or a LINQ chain does needless work (for example Count() > 0 instead of Any())."
+    },
+    {
+      "id": "PERFORMANCE.STRING_CONCAT_IN_LOOP",
+      "title": "String concatenation in a loop",
+      "category": "performance",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Strings are built by repeated concatenation in a loop where a StringBuilder would avoid quadratic copying."
+    },
+    {
+      "id": "PERFORMANCE.ALLOCATIONS",
+      "title": "Unnecessary allocations or expensive operations",
+      "category": "performance",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Work in a hot path allocates or recomputes needlessly, for example creating Regex or serializer instances per call."
+    },
+    {
+      "id": "SECURITY.SQL_INJECTION",
+      "title": "SQL injection",
+      "category": "security",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Untrusted input is concatenated or interpolated into SQL instead of being passed as parameters."
+    },
+    {
+      "id": "SECURITY.INJECTION",
+      "title": "Command or other injection",
+      "category": "security",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Untrusted input reaches a process command line, LDAP, XPath, template, log or other interpreter without neutralization."
+    },
+    {
+      "id": "SECURITY.PATH_TRAVERSAL",
+      "title": "Path traversal",
+      "category": "security",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "A file path built from untrusted input can escape the intended directory."
+    },
+    {
+      "id": "SECURITY.UNSAFE_INPUT",
+      "title": "Unsafe handling of external input",
+      "category": "security",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "External input (request data, files, messages) is used without validation, size limits or encoding where it matters."
+    },
+    {
+      "id": "SECURITY.ACCESS_CONTROL",
+      "title": "Authorization or access-control flaw",
+      "category": "security",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "An operation on protected data or functionality is reachable without the authorization checks the code base applies elsewhere."
+    },
+    {
+      "id": "SECURITY.INSECURE_CRYPTO",
+      "title": "Insecure cryptography",
+      "category": "security",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Weak algorithms (MD5, SHA-1, DES), fixed keys or IVs, insecure random numbers for secrets, or disabled certificate validation."
+    },
+    {
+      "id": "SECURITY.INSECURE_DESERIALIZATION",
+      "title": "Insecure deserialization",
+      "category": "security",
+      "defaultSeverity": "high",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Untrusted data is deserialized with type-resolving serializers (BinaryFormatter, TypeNameHandling, ...) that allow arbitrary types."
+    },
+    {
+      "id": "CLEANCODE.COMPLEXITY",
+      "title": "Unnecessary complexity",
+      "category": "cleanCode",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Excessively long methods, deep nesting or convoluted logic that a simpler structure would express clearly (KISS)."
+    },
+    {
+      "id": "CLEANCODE.DUPLICATION",
+      "title": "Duplicated logic",
+      "category": "cleanCode",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Substantial logic is duplicated where a shared implementation would prevent the copies from diverging (DRY)."
+    },
+    {
+      "id": "CLEANCODE.DEAD_CODE",
+      "title": "Dead code or unused variables",
+      "category": "cleanCode",
+      "defaultSeverity": "info",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Code that can never run, or variables, parameters and members that are never used."
+    },
+    {
+      "id": "CLEANCODE.NAMING",
+      "title": "Misleading naming",
+      "category": "cleanCode",
+      "defaultSeverity": "info",
+      "enabledByDefault": false,
+      "detection": "ai-review",
+      "description": "A name contradicts what the code does, in a way that is likely to cause misuse."
+    },
+    {
+      "id": "ARCHITECTURE.LAYER_VIOLATION",
+      "title": "Incorrect dependency direction",
+      "category": "architecture",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Code depends on a layer or component it should not, contrary to the structure visible in the project or its documented architecture."
+    },
+    {
+      "id": "ARCHITECTURE.RESPONSIBILITIES",
+      "title": "Too many responsibilities",
+      "category": "architecture",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "A class or method mixes unrelated concerns, with concrete evidence of SOLID violations that hinder change."
+    },
+    {
+      "id": "ARCHITECTURE.COUPLING",
+      "title": "Excessive coupling",
+      "category": "architecture",
+      "defaultSeverity": "low",
+      "enabledByDefault": false,
+      "detection": "ai-review",
+      "description": "Components depend on each other's internals, making them hard to change or test independently."
+    },
+    {
+      "id": "ARCHITECTURE.UNNECESSARY_ABSTRACTION",
+      "title": "Unnecessary abstraction",
+      "category": "architecture",
+      "defaultSeverity": "info",
+      "enabledByDefault": false,
+      "detection": "ai-review",
+      "description": "An interface or layer adds indirection without a current need such as testing, multiple implementations or isolation."
+    },
+    {
+      "id": "TESTING.MISSING_TESTS",
+      "title": "Changed behavior without tests",
+      "category": "testing",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Important behavior or an error path introduced by the change has no corresponding test in the code shown, considering the project's conventions."
+    },
+    {
+      "id": "TESTING.FRAGILE_TEST",
+      "title": "Fragile or nondeterministic test",
+      "category": "testing",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "A test depends on time, ordering, shared state, the network or sleeps in a way that can make it fail intermittently."
+    },
+    {
+      "id": "PRODUCTION.MISSING_TIMEOUT",
+      "title": "Missing timeout or resilience",
+      "category": "productionReadiness",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "A call to an external dependency has no timeout, cancellation or retry policy where a failure would hang or cascade."
+    },
+    {
+      "id": "PRODUCTION.ERROR_HANDLING_LOGGING",
+      "title": "Inadequate logging or error handling",
+      "category": "productionReadiness",
+      "defaultSeverity": "low",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Failures are not logged with enough structured context to diagnose them, or sensitive data is logged."
+    },
+    {
+      "id": "PRODUCTION.CONFIGURATION",
+      "title": "Unsafe environment-specific configuration",
+      "category": "productionReadiness",
+      "defaultSeverity": "medium",
+      "enabledByDefault": true,
+      "detection": "ai-review",
+      "description": "Development-only settings, hard-coded endpoints or inconsistent configuration can reach production."
+    },
+    {
+      "id": "PRODUCTION.HEALTH_CHECKS",
+      "title": "Missing health or readiness checks",
+      "category": "productionReadiness",
+      "defaultSeverity": "info",
+      "enabledByDefault": false,
+      "detection": "ai-review",
+      "description": "A hosted service or web application that is deployed and monitored exposes no health or readiness check, when that fits the application type."
+    }
+  ],
+  "profiles": [
+    {
+      "name": "default",
+      "description": "Every rule that is enabled by default."
+    },
+    {
+      "name": "security",
+      "description": "Security rules only, including exposed secrets.",
+      "categories": ["security"]
+    },
+    {
+      "name": "performance",
+      "description": "Performance rules only.",
+      "categories": ["performance"]
+    }
+  ]
+}

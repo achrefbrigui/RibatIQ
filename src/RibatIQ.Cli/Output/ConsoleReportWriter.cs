@@ -48,7 +48,7 @@ internal sealed class ConsoleReportWriter : IReportWriter
                 : string.Empty;
 
             await writer.WriteLineAsync(
-                $"{finding.Severity.ToString().ToUpperInvariant(),-8} {FormatLocation(finding)}  [{finding.RuleId?.Value ?? finding.ToolRuleId ?? finding.Source}] {finding.Title}: {finding.Description}{confidence}")
+                $"{finding.Severity.ToString().ToUpperInvariant(),-8} {FormatLocation(finding)}  [{RuleTag(finding)}] {finding.Title}: {finding.Description}{confidence}")
                 .ConfigureAwait(false);
 
             if (finding.SuggestedFix is { } fix)
@@ -94,6 +94,15 @@ internal sealed class ConsoleReportWriter : IReportWriter
                 CultureInfo.InvariantCulture,
                 $"Analyzed {stats.FilesAnalyzed} C# file(s) in {stats.ProjectCount ?? 0} project(s).");
     }
+
+    /// <summary>Catalogue rule with the tool diagnostic in parentheses, e.g. <c>SECURITY.EXPOSED_SECRET (RIQ1004)</c>.</summary>
+    private static string RuleTag(ReviewFinding finding) => (finding.RuleId, finding.ToolRuleId) switch
+    {
+        ({ } rule, { } tool) => $"{rule.Value} ({tool})",
+        ({ } rule, null) => rule.Value,
+        (null, { } tool) => tool,
+        _ => finding.Source,
+    };
 
     private static string FormatLocation(ReviewFinding finding) =>
         finding.StartLine is { } line

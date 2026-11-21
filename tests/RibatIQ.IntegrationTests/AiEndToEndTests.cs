@@ -36,7 +36,7 @@ public sealed class AiEndToEndTests : IDisposable
         Assert.Contains("Note: AI analysis is enabled", result.Error, StringComparison.Ordinal);
         Assert.Contains("AI: openai (scripted-model), 3 file(s) sent, 900 input / 50 output tokens.", result.Output, StringComparison.Ordinal);
         Assert.Contains("HIGH     src/Sample.Web/Startup.cs:9  [openai] Initialize can crash the process", result.Output, StringComparison.Ordinal);
-        Assert.Contains("[RIQ1004]", result.Output, StringComparison.Ordinal);
+        Assert.Contains("[SECURITY.EXPOSED_SECRET (RIQ1004)]", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("Hallucinated", result.Output, StringComparison.Ordinal);
         Assert.Contains("1 finding(s) were ignored", result.Output, StringComparison.Ordinal);
 
