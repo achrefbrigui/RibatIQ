@@ -31,11 +31,18 @@ internal static class ReviewCommand
         command.Options.Add(baseOption);
         command.Options.Add(headOption);
 
+        var options = new AnalysisOptions();
+        options.AddTo(command);
+
         command.SetAction(async (parseResult, cancellationToken) =>
         {
             var request = new ReviewRequest(parseResult.GetValue(baseOption)!, parseResult.GetValue(headOption)!);
 
-            return await CommandResults.EngineNotAvailableAsync(context, "review", request.Range).ConfigureAwait(false);
+            return await options.RunWithSettingsAsync(
+                parseResult,
+                context,
+                _ => CommandResults.EngineNotAvailableAsync(context, "review", request.Range),
+                cancellationToken).ConfigureAwait(false);
         });
 
         return command;

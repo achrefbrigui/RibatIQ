@@ -23,6 +23,9 @@ internal static class ScanCommand
         };
         command.Arguments.Add(pathArgument);
 
+        var options = new AnalysisOptions();
+        options.AddTo(command);
+
         command.SetAction(async (parseResult, cancellationToken) =>
         {
             var path = parseResult.GetValue(pathArgument)!;
@@ -33,7 +36,11 @@ internal static class ScanCommand
                 return ExitCodes.InvalidUsage;
             }
 
-            return await CommandResults.EngineNotAvailableAsync(context, "scan", request.TargetPath).ConfigureAwait(false);
+            return await options.RunWithSettingsAsync(
+                parseResult,
+                context,
+                _ => CommandResults.EngineNotAvailableAsync(context, "scan", request.TargetPath),
+                cancellationToken).ConfigureAwait(false);
         });
 
         return command;
