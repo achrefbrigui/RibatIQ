@@ -134,7 +134,7 @@ public sealed class GitCli : IGitClient
                 var parts = entry.Split('\t', 2);
                 var fields = parts[0].Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 2 && sizes.ContainsKey(parts[1])
-                    && fields is [ "100644" or "100755", "blob", _, var sizeText ]
+                    && fields is ["100644" or "100755", "blob", _, var sizeText]
                     && long.TryParse(sizeText, NumberStyles.None, CultureInfo.InvariantCulture, out var size))
                 {
                     sizes[parts[1]] = size;
