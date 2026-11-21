@@ -73,3 +73,13 @@ public static class FileSystemInstructionsReader
         }
     }
 }
+
+/// <summary><see cref="IInstructionsReader"/> backed by <see cref="FileSystemInstructionsReader"/>.</summary>
+public sealed class FileSystemInstructionsSource : IInstructionsReader
+{
+    public Task<InstructionsReadResult> ReadFromDirectoryAsync(string directory, CancellationToken cancellationToken) =>
+        FileSystemInstructionsReader.ReadFromDirectoryAsync(directory, cancellationToken);
+
+    public Task<InstructionsReadResult> ReadFileAsync(string path, string source, CancellationToken cancellationToken) =>
+        FileSystemInstructionsReader.ReadAsync(path, source, cancellationToken);
+}

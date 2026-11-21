@@ -4,6 +4,7 @@ using RibatIQ.Application.Reporting;
 using RibatIQ.Application.Reviewing;
 using RibatIQ.Cli.Output;
 using RibatIQ.Infrastructure.Git;
+using RibatIQ.Infrastructure.Instructions;
 using RibatIQ.Infrastructure.Roslyn;
 
 namespace RibatIQ.Cli.Commands;
@@ -52,7 +53,8 @@ internal static class ReviewCommand
                         new RoslynStaticAnalyzer(),
                         TimeProvider.System,
                         ToolInfo.Version,
-                        llmProviders: context.ResolveLlmProviders());
+                        llmProviders: context.ResolveLlmProviders(),
+                        instructions: new FileSystemInstructionsSource());
 
                     var outcome = await service.RunAsync(request, settings, context.CurrentDirectory, cancellationToken)
                         .ConfigureAwait(false);

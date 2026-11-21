@@ -108,6 +108,10 @@ public sealed record ReviewPolicy
     /// <summary>Project-specific guidance for reviewers; untrusted and informational only.</summary>
     public ProjectInstructions? Instructions { get; }
 
+    /// <summary>The same policy with different project instructions (which never affect the rules).</summary>
+    public ReviewPolicy WithInstructions(ProjectInstructions? instructions) =>
+        new(Profile, EnabledRules, DisabledRules, MinimumSeverity, Categories, IncludeUnclassified, instructions);
+
     public bool IsEnabled(ReviewRuleId ruleId)
     {
         ArgumentNullException.ThrowIfNull(ruleId);

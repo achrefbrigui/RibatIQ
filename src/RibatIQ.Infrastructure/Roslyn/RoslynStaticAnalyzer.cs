@@ -38,6 +38,8 @@ public sealed class RoslynStaticAnalyzer : IStaticAnalyzer
     public static IReadOnlyList<ReviewRuleId> SupportedRules { get; } =
         [RibatRules.SyntaxError, .. RibatRules.CatalogueRules.Values];
 
+    IReadOnlyList<ReviewRuleId> IStaticAnalyzer.SupportedRules => SupportedRules;
+
     public string Coverage => "C# syntax errors and RibatIQ rules (RIQ1001-RIQ1004); no build or semantic analysis";
 
     public async Task<StaticAnalysisResult> AnalyzeAsync(IReadOnlyList<SourceDocument> documents, CancellationToken cancellationToken)

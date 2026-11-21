@@ -4,6 +4,7 @@ using RibatIQ.Application.Reporting;
 using RibatIQ.Application.Scanning;
 using RibatIQ.Cli.Output;
 using RibatIQ.Infrastructure.Discovery;
+using RibatIQ.Infrastructure.Instructions;
 using RibatIQ.Infrastructure.Roslyn;
 
 namespace RibatIQ.Cli.Commands;
@@ -48,7 +49,8 @@ internal static class ScanCommand
                         new RoslynStaticAnalyzer(),
                         TimeProvider.System,
                         ToolInfo.Version,
-                        context.ResolveLlmProviders());
+                        context.ResolveLlmProviders(),
+                        instructions: new FileSystemInstructionsSource());
 
                     var outcome = await service.RunAsync(request, settings, cancellationToken).ConfigureAwait(false);
 
