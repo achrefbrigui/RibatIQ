@@ -172,7 +172,14 @@ the exit code: test `complete` if your pipeline requires every check.
   items in project files are not evaluated.
 - AI findings are heuristic. Their confidence score is the model's own estimate, not a probability.
 - There is no suppression or baseline mechanism yet; finding IDs are stable to make one possible.
-- Results are not published to pull requests yet.
+- Results are not published to pull requests yet, and there is no SARIF output.
+- Most catalogue rules are detected by the AI review only, so they are checked only when a provider is
+  configured; the report says when the AI review was skipped.
+- Skipped or failed checks do not change the exit code. Test the JSON report's `complete` field if
+  your pipeline requires every check.
+- The dependency audit only covers NuGet packages of projects that are already restored.
+- Out of scope for now: other languages, DAST, automatic fixes, autonomous agents, plugins, custom
+  rule languages, and code coverage collection.
 
 ## Development
 
