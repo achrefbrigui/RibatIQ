@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Product metadata -->
+    <Product>RibatIQ</Product>
+    <Company>RibatIQ contributors</Company>
+    <Copyright>Copyright (c) RibatIQ contributors</Copyright>
+    <Description>Open-source AI code intelligence for .NET.</Description>
+    <Version>0.1.0</Version>
+    <!-- Keep the reported version stable (no "+commit" suffix). -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>
