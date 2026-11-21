@@ -1,6 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Adapters: LLM providers, Git, Roslyn, filesystem, serialization. -->
+  <PropertyGroup>
+    <!--
+      RibatIQ hosts its DiagnosticAnalyzers in-process (CompilationWithAnalyzers); they are never
+      shipped as compiler extensions loaded by csc. These rules only apply to shipped analyzers:
+      RS1036 (EnforceExtendedAnalyzerRules), RS1041 (netstandard2.0 target), RS2008 (release tracking).
+    -->
+    <NoWarn>$(NoWarn);RS1036;RS1041;RS2008</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RibatIQ.Application\RibatIQ.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="RibatIQ.IntegrationTests" />
   </ItemGroup>
 </Project>

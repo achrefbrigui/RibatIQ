@@ -22,12 +22,12 @@ public sealed class CliCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task Help_DoesNotAdvertiseCommandsThatAreNotWiredYet()
+    public async Task Help_ListsOnlyWiredCommands()
     {
         var result = await RunAsync("--help");
 
         Assert.Equal(ExitCodes.Success, result.ExitCode);
-        Assert.DoesNotContain("scan", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("scan", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("review", result.Output, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -36,7 +36,7 @@ public sealed class CliCommandTests : IDisposable
     [InlineData("App.sln")]
     [InlineData("App.slnx")]
     [InlineData("src/App/App.csproj")]
-    public async Task Scan_WithSupportedTarget_ValidatesThenReportsEngineUnavailable(string target)
+    public async Task Scan_WithSupportedTarget_ProducesReport(string target)
     {
         _workspace.WriteFile("App.sln", string.Empty);
         _workspace.WriteFile("App.slnx", "<Solution />");
@@ -44,8 +44,8 @@ public sealed class CliCommandTests : IDisposable
 
         var result = await RunAsync("scan", target);
 
-        Assert.Equal(ExitCodes.OperationalFailure, result.ExitCode);
-        Assert.Contains("not available", result.Error, StringComparison.Ordinal);
+        Assert.Equal(ExitCodes.Success, result.ExitCode);
+        Assert.Contains("RibatIQ scan:", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -55,8 +55,8 @@ public sealed class CliCommandTests : IDisposable
 
         var result = await RunAsync("scan", "My Folder/My App.sln");
 
-        Assert.Equal(ExitCodes.OperationalFailure, result.ExitCode);
-        Assert.Contains("My App.sln", result.Error, StringComparison.Ordinal);
+        Assert.Equal(ExitCodes.Success, result.ExitCode);
+        Assert.Contains("My App.sln", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -138,7 +138,9 @@ public sealed class CliCommandTests : IDisposable
         Assert.Contains("AI analysis: disabled", result.Error, StringComparison.Ordinal);
         Assert.Contains("Fail on: none", result.Error, StringComparison.Ordinal);
         Assert.Contains("**/obj/**", result.Error, StringComparison.Ordinal);
-        Assert.Empty(result.Output);
+
+        // Diagnostics go to standard error; standard output holds only the report.
+        Assert.DoesNotContain("[verbose]", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
