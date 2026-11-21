@@ -12,6 +12,8 @@ public static class FileSystemInstructionsReader
 {
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
+    private static readonly byte[] Utf8Bom = [0xEF, 0xBB, 0xBF];
+
     /// <summary>Reads <see cref="ProjectInstructionsLoader.FileName"/> in <paramref name="directory"/>.</summary>
     public static Task<InstructionsReadResult> ReadFromDirectoryAsync(string directory, CancellationToken cancellationToken)
     {
@@ -57,8 +59,8 @@ public static class FileSystemInstructionsReader
                 return new InstructionsReadResult(source, null, InstructionsStatus.TooLarge);
             }
 
-            var preamble = StrictUtf8.Preamble;
-            var offset = bytes.AsSpan().StartsWith(preamble) ? preamble.Length : 0;
+            // StrictUtf8.Preamble is empty (it never emits a BOM), so compare with the BOM bytes explicitly.
+            var offset = bytes.AsSpan().StartsWith(Utf8Bom) ? Utf8Bom.Length : 0;
             return new InstructionsReadResult(source, StrictUtf8.GetString(bytes, offset, bytes.Length - offset));
         }
         catch (DecoderFallbackException)
