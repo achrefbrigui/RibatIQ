@@ -1,0 +1,4 @@
+# Test-project overrides (inherits from the root .editorconfig).
+[*.cs]
+# Allow Method_Scenario_ExpectedResult test naming.
+dotnet_diagnostic.CA1707.severity = none

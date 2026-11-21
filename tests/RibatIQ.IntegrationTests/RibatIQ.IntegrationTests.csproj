@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RibatIQ.Cli\RibatIQ.Cli.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Analyzed as data by the tests, never compiled. -->
+    <None Include="..\Fixtures\**\*" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Documented samples are tested so they cannot drift from the real configuration format. -->
+    <None Include="..\..\samples\**\*" LinkBase="Samples" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\docs\review-rules.md" Link="Docs\review-rules.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
