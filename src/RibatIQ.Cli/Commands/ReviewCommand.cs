@@ -1,6 +1,10 @@
 using System.CommandLine;
+using System.Globalization;
 
 using RibatIQ.Application.Reviewing;
+using RibatIQ.Cli.Output;
+using RibatIQ.Infrastructure.Git;
+using RibatIQ.Infrastructure.Roslyn;
 
 namespace RibatIQ.Cli.Commands;
 
@@ -17,15 +21,15 @@ internal static class ReviewCommand
 
         var headOption = new Option<string>("--head")
         {
-            Description = "Git revision containing the changes.",
+            Description = "Git revision containing the changes. Files are read at this revision, not from the working tree.",
             DefaultValueFactory = _ => ReviewRequest.DefaultHeadRef,
         };
 
-        var command = new Command("review", "Review the changes between two Git revisions.")
-        {
-            // Hidden until the review engine is wired in, so --help only lists working commands.
-            Hidden = true,
-        };
+        var command = new Command(
+            "review",
+            "Review the C# changes between two Git revisions (since their merge base, like a pull request) " +
+            "and report findings on changed lines. Run inside the repository.");
+
         AddRefValidator(baseOption);
         AddRefValidator(headOption);
         command.Options.Add(baseOption);
@@ -41,7 +45,21 @@ internal static class ReviewCommand
             return await options.RunWithSettingsAsync(
                 parseResult,
                 context,
-                _ => CommandResults.EngineNotAvailableAsync(context, "review", request.Range),
+                async settings =>
+                {
+                    var service = new ReviewService(new GitCli(), new RoslynStaticAnalyzer(), TimeProvider.System, ToolInfo.Version);
+
+                    var outcome = await service.RunAsync(request, settings, context.CurrentDirectory, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    var scope = string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Reviewed {outcome.ReviewedFileCount} changed C# file(s) of {outcome.ChangedFileCount} changed file(s); " +
+                        $"{outcome.FindingsOutsideChanges} finding(s) outside changed lines ignored.");
+                    await ConsoleSummaryWriter.WriteAsync(context.Output, outcome.Result, scope, outcome.Coverage).ConfigureAwait(false);
+
+                    return ExitCodes.Success;
+                },
                 cancellationToken).ConfigureAwait(false);
         });
 
