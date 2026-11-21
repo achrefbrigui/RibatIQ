@@ -112,12 +112,15 @@ public sealed class ReviewService
             changes = changes.Take(_maxFiles).ToList();
         }
 
+        var sizes = changes.Count == 0
+            ? new Dictionary<string, long?>()
+            : await _git.GetFileSizesAsync(root, request.HeadRef, [.. changes.Select(c => c.Path)], cancellationToken).ConfigureAwait(false);
+
         var documents = new List<SourceDocument>(changes.Count);
         foreach (var change in changes)
         {
             // Check the size first so an oversized file is never loaded into memory.
-            var size = await _git.GetFileSizeAsync(root, request.HeadRef, change.Path, cancellationToken).ConfigureAwait(false);
-            if (size > DefaultMaxFileSizeChars)
+            if (sizes.GetValueOrDefault(change.Path) > DefaultMaxFileSizeChars)
             {
                 warnings.Add($"Skipped file larger than {DefaultMaxFileSizeChars / 1024} KB: {change.Path}");
                 continue;
