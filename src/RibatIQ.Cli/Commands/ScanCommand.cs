@@ -27,7 +27,7 @@ internal static class ScanCommand
             "Scan a .NET solution, project or directory with static analysis. Source files are only read, never modified.");
         command.Arguments.Add(pathArgument);
 
-        var options = new AnalysisOptions();
+        var options = new AnalysisOptions(auditDependencies: true);
         options.AddTo(command);
 
         command.SetAction(async (parseResult, cancellationToken) =>

@@ -93,7 +93,7 @@ public static class SettingsResolver
         {
             foreach (var rule in layer.EnableRules ?? [])
             {
-                var id = rule.Trim();
+                var id = rule.Trim().ToUpperInvariant();
                 disable.Remove(id);
                 if (!enable.Contains(id))
                 {
@@ -103,7 +103,7 @@ public static class SettingsResolver
 
             foreach (var rule in layer.DisableRules ?? [])
             {
-                var id = rule.Trim();
+                var id = rule.Trim().ToUpperInvariant();
                 enable.Remove(id);
                 if (!disable.Contains(id))
                 {
@@ -159,7 +159,7 @@ public static class SettingsResolver
             }
         }
 
-        return [.. (rules ?? []).Select(r => r.Trim())];
+        return [.. (rules ?? []).Select(r => r.Trim().ToUpperInvariant())];
     }
 
     private static void ValidateGlobs(IReadOnlyList<string>? globs, string kind, string source)
