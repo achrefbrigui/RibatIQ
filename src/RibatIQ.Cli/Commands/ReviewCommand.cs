@@ -1,6 +1,6 @@
 using System.CommandLine;
-using System.Globalization;
 
+using RibatIQ.Application.Reporting;
 using RibatIQ.Application.Reviewing;
 using RibatIQ.Cli.Output;
 using RibatIQ.Infrastructure.Git;
@@ -57,13 +57,17 @@ internal static class ReviewCommand
                     var outcome = await service.RunAsync(request, settings, context.CurrentDirectory, cancellationToken)
                         .ConfigureAwait(false);
 
-                    var scope = string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"Reviewed {outcome.ReviewedFileCount} changed C# file(s) of {outcome.ChangedFileCount} changed file(s); " +
-                        $"{outcome.FindingsOutsideChanges} finding(s) outside changed lines ignored.");
-                    await ConsoleSummaryWriter.WriteAsync(context.Output, outcome.Result, scope, outcome.Coverage, outcome.Ai).ConfigureAwait(false);
+                    var report = new AnalysisReport(
+                        outcome.Result,
+                        request.Range,
+                        outcome.Coverage,
+                        new ReportStatistics(
+                            outcome.ReviewedFileCount,
+                            ChangedFileCount: outcome.ChangedFileCount,
+                            FindingsOutsideChanges: outcome.FindingsOutsideChanges),
+                        outcome.Ai);
 
-                    return ExitCodes.Success;
+                    return await options.PublishAsync(report, parseResult, context, cancellationToken).ConfigureAwait(false);
                 },
                 cancellationToken).ConfigureAwait(false);
         });

@@ -1,31 +1,30 @@
 using System.Globalization;
 
-using RibatIQ.Application.Ai;
+using RibatIQ.Application.Reporting;
 using RibatIQ.Domain.Findings;
-using RibatIQ.Domain.Results;
 
 namespace RibatIQ.Cli.Output;
 
-/// <summary>
-/// Plain-text summary of an analysis result. Intentionally minimal; richer console and JSON
-/// reports are planned with the reporting feature.
-/// </summary>
-internal static class ConsoleSummaryWriter
+/// <summary>Human-readable report: one line per finding, most severe first, then a summary.</summary>
+internal sealed class ConsoleReportWriter : IReportWriter
 {
     public const string Disclaimer = "RibatIQ reports likely issues; it does not prove that code is correct or secure.";
 
-    public static async Task WriteAsync(
-        TextWriter writer, AnalysisResult result, string scopeLine, string coverage, AiAnalysisResult? ai = null)
-    {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(result);
+    public string Format => "console";
 
-        await writer.WriteLineAsync($"RibatIQ {result.Kind.ToString().ToLowerInvariant()}: {result.Target}").ConfigureAwait(false);
+    public async Task WriteAsync(AnalysisReport report, TextWriter writer, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        ArgumentNullException.ThrowIfNull(writer);
+
+        var result = report.Result;
+
+        await writer.WriteLineAsync($"RibatIQ {result.Kind.ToString().ToLowerInvariant()}: {report.DisplayTarget}").ConfigureAwait(false);
         await writer.WriteLineAsync(string.Create(
             CultureInfo.InvariantCulture,
-            $"{scopeLine} Duration: {result.Duration.TotalSeconds:0.0}s. AI analysis: {(result.Metadata.AiEnabled ? "enabled" : "disabled")}.")).ConfigureAwait(false);
+            $"{ScopeLine(report)} Duration: {result.Duration.TotalSeconds:0.0}s. AI analysis: {(result.Metadata.AiEnabled ? "enabled" : "disabled")}.")).ConfigureAwait(false);
 
-        if (ai is not null)
+        if (report.Ai is { } ai)
         {
             var tokens = ai.Usage is { } usage
                 ? string.Create(CultureInfo.InvariantCulture, $", {usage.InputTokens} input / {usage.OutputTokens} output tokens")
@@ -44,9 +43,18 @@ internal static class ConsoleSummaryWriter
 
         foreach (var finding in result.Findings)
         {
+            var confidence = finding.Confidence is { } c
+                ? string.Create(CultureInfo.InvariantCulture, $" (confidence {c:0.00})")
+                : string.Empty;
+
             await writer.WriteLineAsync(
-                $"{finding.Severity.ToString().ToUpperInvariant(),-8} {FormatLocation(finding)}  [{finding.RuleId ?? finding.Source}] {finding.Title}: {finding.Description}")
+                $"{finding.Severity.ToString().ToUpperInvariant(),-8} {FormatLocation(finding)}  [{finding.RuleId ?? finding.Source}] {finding.Title}: {finding.Description}{confidence}")
                 .ConfigureAwait(false);
+
+            if (finding.SuggestedFix is { } fix)
+            {
+                await writer.WriteLineAsync($"         Suggested fix: {fix}").ConfigureAwait(false);
+            }
         }
 
         var s = result.Summary;
@@ -64,8 +72,20 @@ internal static class ConsoleSummaryWriter
             }
         }
 
-        await writer.WriteLineAsync($"Coverage: {coverage}.").ConfigureAwait(false);
+        await writer.WriteLineAsync($"Coverage: {report.Coverage}.").ConfigureAwait(false);
         await writer.WriteLineAsync(Disclaimer).ConfigureAwait(false);
+    }
+
+    private static string ScopeLine(AnalysisReport report)
+    {
+        var stats = report.Statistics;
+        return stats.ChangedFileCount is { } changed
+            ? string.Create(
+                CultureInfo.InvariantCulture,
+                $"Reviewed {stats.FilesAnalyzed} changed C# file(s) of {changed} changed file(s); {stats.FindingsOutsideChanges ?? 0} finding(s) outside changed lines ignored.")
+            : string.Create(
+                CultureInfo.InvariantCulture,
+                $"Analyzed {stats.FilesAnalyzed} C# file(s) in {stats.ProjectCount ?? 0} project(s).");
     }
 
     private static string FormatLocation(ReviewFinding finding) =>

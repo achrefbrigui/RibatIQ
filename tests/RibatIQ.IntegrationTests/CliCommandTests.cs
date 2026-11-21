@@ -37,7 +37,8 @@ public sealed class CliCommandTests : IDisposable
         Assert.Contains("--model", scanHelp, StringComparison.Ordinal);
         Assert.Contains("ANTHROPIC_API_KEY", scanHelp, StringComparison.Ordinal);
         Assert.DoesNotContain("--fail-on", scanHelp, StringComparison.Ordinal);
-        Assert.DoesNotContain("--format", scanHelp, StringComparison.Ordinal);
+        Assert.Contains("--format", scanHelp, StringComparison.Ordinal);
+        Assert.Contains("--output", scanHelp, StringComparison.Ordinal);
     }
 
     [Theory]
