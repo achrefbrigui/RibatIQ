@@ -1,6 +1,6 @@
 using System.CommandLine;
-using System.Globalization;
 
+using RibatIQ.Application.Reporting;
 using RibatIQ.Application.Scanning;
 using RibatIQ.Cli.Output;
 using RibatIQ.Infrastructure.Discovery;
@@ -52,12 +52,15 @@ internal static class ScanCommand
 
                     var outcome = await service.RunAsync(request, settings, cancellationToken).ConfigureAwait(false);
 
-                    var scope = string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"Analyzed {outcome.FileCount} C# file(s) in {outcome.ProjectCount} project(s).");
-                    await ConsoleSummaryWriter.WriteAsync(context.Output, outcome.Result, scope, outcome.Coverage, outcome.Ai).ConfigureAwait(false);
+                    var report = new AnalysisReport(
+                        outcome.Result,
+                        ReportPublisher.DisplayPath(request.TargetPath, context.CurrentDirectory),
+                        outcome.Coverage,
+                        new ReportStatistics(outcome.FileCount, ProjectCount: outcome.ProjectCount),
+                        outcome.Ai,
+                        settings.FailOn);
 
-                    return ExitCodes.Success;
+                    return await options.PublishAsync(report, parseResult, context, cancellationToken).ConfigureAwait(false);
                 },
                 cancellationToken).ConfigureAwait(false);
         });

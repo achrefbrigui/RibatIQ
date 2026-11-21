@@ -2,7 +2,9 @@ using System.CommandLine;
 
 using RibatIQ.Application;
 using RibatIQ.Application.Configuration;
+using RibatIQ.Application.Reporting;
 using RibatIQ.Cli.Configuration;
+using RibatIQ.Cli.Output;
 
 namespace RibatIQ.Cli.Commands;
 
@@ -29,13 +31,13 @@ internal sealed class AnalysisOptions
 
     public Option<string> Format { get; } = new("--format")
     {
-        Description = "Report format.",
+        Description = "Report format: console (human-readable) or json (versioned, for tools and CI).",
         DefaultValueFactory = _ => ConsoleFormat,
     };
 
     public Option<FileInfo> Output { get; } = new("--output")
     {
-        Description = "Write the report to this file instead of standard output.",
+        Description = "Write the report to this file instead of standard output. Source and build files are never overwritten.",
     };
 
     public Option<FileInfo> Config { get; } = new("--config")
@@ -45,7 +47,7 @@ internal sealed class AnalysisOptions
 
     public Option<string> FailOn { get; } = new("--fail-on")
     {
-        Description = "Exit with code 1 when a finding at or above this severity is reported.",
+        Description = "Exit with code 1 when a finding at or above this severity is reported, after the report is written. Default: none.",
     };
 
     public Option<string[]> Include { get; } = new("--include")
@@ -68,12 +70,25 @@ internal sealed class AnalysisOptions
         Provider.AcceptOnlyFromAmong([.. LlmProviders.All]);
         Format.AcceptOnlyFromAmong(ConsoleFormat, JsonFormat);
         FailOn.AcceptOnlyFromAmong([.. FailPolicy.AcceptedValues]);
+    }
 
-        // Parsed and validated, but hidden from --help until reporting exists (--format, --output, --fail-on).
-        foreach (var option in new Option[] { Format, Output, FailOn })
-        {
-            option.Hidden = true;
-        }
+    /// <summary>
+    /// Writes the report in the requested format and destination, then applies the failure threshold.
+    /// The threshold never prevents the report from being produced.
+    /// </summary>
+    public async Task<int> PublishAsync(AnalysisReport report, ParseResult parseResult, CliContext context, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        ArgumentNullException.ThrowIfNull(parseResult);
+
+        await ReportPublisher.PublishAsync(
+            report,
+            parseResult.GetValue(Format) ?? ConsoleFormat,
+            parseResult.GetValue(Output)?.ToString(),
+            context,
+            cancellationToken).ConfigureAwait(false);
+
+        return report.ThresholdExceeded ? ExitCodes.FindingsAtOrAboveThreshold : ExitCodes.Success;
     }
 
     public void AddTo(Command command)
@@ -159,7 +174,6 @@ internal sealed class AnalysisOptions
         }
 
         await WriteVerboseAsync(parseResult, context, settings).ConfigureAwait(false);
-        await WriteNotYetAppliedWarningsAsync(parseResult, context, settings).ConfigureAwait(false);
 
         if (settings.AiEnabled)
         {
@@ -187,23 +201,6 @@ internal sealed class AnalysisOptions
         {
             await context.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
             return ExitCodes.OperationalFailure;
-        }
-    }
-
-    /// <summary>Reporting settings are accepted but not applied yet; say so instead of ignoring them silently.</summary>
-    private async Task WriteNotYetAppliedWarningsAsync(ParseResult parseResult, CliContext context, RibatSettings settings)
-    {
-        // --format has a default value, which yields an implicit result; only warn for explicit use.
-        if (parseResult.GetResult(Format) is { Implicit: false } || parseResult.GetResult(Output) is { Implicit: false })
-        {
-            await context.Error.WriteLineAsync(
-                "Warning: --format and --output are not applied yet; the report is written to the console.").ConfigureAwait(false);
-        }
-
-        if (settings.FailOn.Threshold is not null)
-        {
-            await context.Error.WriteLineAsync(
-                $"Warning: the fail-on threshold ({settings.FailOn}) is not applied yet; findings do not change the exit code.").ConfigureAwait(false);
         }
     }
 

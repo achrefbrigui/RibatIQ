@@ -90,12 +90,13 @@ public sealed class ScanEndToEndTests : IDisposable
     }
 
     [Fact]
-    public async Task Scan_WithFailOnThreshold_WarnsThatItIsNotAppliedYet()
+    public async Task Scan_WithFailOnThreshold_WritesTheFullReport_ThenExitsWithCode1()
     {
         var result = await RunAsync("scan", "SampleSolution.sln", "--fail-on", "high");
 
-        Assert.Equal(ExitCodes.Success, result.ExitCode);
-        Assert.Contains("not applied yet", result.Error, StringComparison.Ordinal);
+        Assert.Equal(ExitCodes.FindingsAtOrAboveThreshold, result.ExitCode);
+        Assert.Contains("4 finding(s):", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Result: FAILED - 1 finding(s) at or above 'high'", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]

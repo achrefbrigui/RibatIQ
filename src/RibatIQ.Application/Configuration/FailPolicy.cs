@@ -1,4 +1,5 @@
 using RibatIQ.Domain.Findings;
+using RibatIQ.Domain.Results;
 
 namespace RibatIQ.Application.Configuration;
 
@@ -29,6 +30,13 @@ public sealed record FailPolicy
 
     /// <summary>Lowest failing severity, or <see langword="null"/> for <see cref="Never"/>.</summary>
     public FindingSeverity? Threshold { get; }
+
+    /// <summary>Number of findings at or above the threshold; always 0 for <see cref="Never"/>.</summary>
+    public int CountFailing(FindingSummary summary)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
+        return Threshold is { } threshold ? summary.CountAtOrAbove(threshold) : 0;
+    }
 
     public static FailPolicy AtOrAbove(FindingSeverity severity) =>
         Enum.IsDefined(severity)
