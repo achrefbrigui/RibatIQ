@@ -1,0 +1,23 @@
+// Sample RibatIQ configuration. Copy it to the root of your repository as ribatiq.json.
+// Command-line options and RIBATIQ_* environment variables override these values.
+// API keys are never read from this file: set OPENAI_API_KEY or ANTHROPIC_API_KEY instead.
+{
+  "version": 1,
+
+  "analysis": {
+    // Files to analyze (empty or omitted: all C# files). bin/, obj/ and .git/ are always excluded.
+    "include": ["src/**/*.cs"],
+    "exclude": ["**/Migrations/**", "**/*.g.cs", "**/*.Designer.cs"],
+
+    // Exit with code 1 when a finding is at or above this severity:
+    // none, info, low, medium, high or critical.
+    "failOn": "high"
+  },
+
+  "ai": {
+    // AI analysis sends source excerpts to the provider. Remove this section to keep code local.
+    "enabled": true,
+    "provider": "anthropic"
+    // "model": "claude-opus-5-5"
+  }
+}
