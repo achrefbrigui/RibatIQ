@@ -78,11 +78,13 @@ public sealed class ScanEndToEndTests : IDisposable
     }
 
     [Fact]
-    public async Task Scan_WithAiRequested_FailsWithOperationalError()
+    public async Task Scan_WithAiRequested_WithoutApiKey_IsInvalidUsage_BeforeAnyAnalysis()
     {
+        // The test environment has no variables at all, so no API key is available.
         var result = await RunAsync("scan", "SampleSolution.sln", "--provider", "openai");
 
-        Assert.Equal(ExitCodes.OperationalFailure, result.ExitCode);
+        Assert.Equal(ExitCodes.InvalidUsage, result.ExitCode);
+        Assert.Contains("OPENAI_API_KEY is not set", result.Error, StringComparison.Ordinal);
         Assert.Contains("--no-ai", result.Error, StringComparison.Ordinal);
         Assert.DoesNotContain("finding(s)", result.Output, StringComparison.Ordinal);
     }

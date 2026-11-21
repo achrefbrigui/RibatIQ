@@ -1,5 +1,7 @@
 using RibatIQ.Application;
 using RibatIQ.Application.Ai;
+using RibatIQ.Application.Configuration;
+using RibatIQ.Infrastructure.Llm;
 
 namespace RibatIQ.Cli;
 
@@ -21,7 +23,10 @@ internal sealed class LlmProviderRegistry : ILlmProviderFactory
     public static LlmProviderRegistry CreateDefault(CliContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        return new LlmProviderRegistry(new Dictionary<string, Func<string?, ILlmProvider>>(StringComparer.Ordinal));
+        return new LlmProviderRegistry(new Dictionary<string, Func<string?, ILlmProvider>>(StringComparer.Ordinal)
+        {
+            [LlmProviders.OpenAi] = model => OpenAiProvider.FromEnvironment(context.GetEnvironmentVariable, model),
+        });
     }
 
     public ILlmProvider Create(string providerId, string? model) =>
