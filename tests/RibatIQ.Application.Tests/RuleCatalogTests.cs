@@ -80,7 +80,7 @@ public sealed class RuleCatalogTests
         var catalog = RuleCatalog.Default;
 
         Assert.All(catalog.Profiles, p => Assert.All(p.Enable.Concat(p.Disable), id => Assert.NotNull(catalog.Find(id))));
-        Assert.Equal([FindingCategory.Security], catalog.FindProfile("security")!.Categories!);
+        Assert.Equal([FindingCategory.Security, FindingCategory.Dependencies], catalog.FindProfile("security")!.Categories!.Order());
         Assert.Null(catalog.FindProfile("default")!.Categories);
         Assert.Null(catalog.FindProfile("strict"));
     }

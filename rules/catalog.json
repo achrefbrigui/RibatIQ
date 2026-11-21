@@ -378,8 +378,8 @@
     },
     {
       "name": "security",
-      "description": "Security rules only, including exposed secrets.",
-      "categories": ["security"]
+      "description": "Security rules and vulnerable dependencies, including exposed secrets.",
+      "categories": ["security", "dependencies"]
     },
     {
       "name": "performance",

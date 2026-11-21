@@ -26,20 +26,24 @@ public sealed class ReviewPolicyResolverTests
     }
 
     [Theory]
-    [InlineData("security", FindingCategory.Security)]
-    [InlineData("performance", FindingCategory.Performance)]
-    public void CategoryProfiles_EnableOnlyTheirCategory_AndFilterFindings(string profile, FindingCategory category)
+    [InlineData("security", new[] { FindingCategory.Security, FindingCategory.Dependencies })]
+    [InlineData("performance", new[] { FindingCategory.Performance })]
+    public void CategoryProfiles_EnableOnlyTheirCategories_AndFilterFindings(string profile, FindingCategory[] categories)
     {
         var policy = ReviewPolicyResolver.Resolve(Catalog, profile);
 
         Assert.Equal(profile, policy.Profile);
         Assert.NotEmpty(policy.EnabledRules);
-        Assert.All(policy.EnabledRules, id => Assert.Equal(category, Catalog.Get(id).Category));
+        Assert.All(policy.EnabledRules, id => Assert.Contains(Catalog.Get(id).Category, categories));
         Assert.Equal(
-            Catalog.Rules.Where(r => r.EnabledByDefault && r.Category == category).Select(r => r.Id).ToHashSet(),
+            Catalog.Rules.Where(r => r.EnabledByDefault && categories.Contains(r.Category)).Select(r => r.Id).ToHashSet(),
             policy.EnabledRules.ToHashSet());
-        Assert.Equal([category], policy.Categories!);
+        Assert.Equal(categories.ToHashSet(), policy.Categories!.ToHashSet());
     }
+
+    [Fact]
+    public void SecurityProfile_IncludesTheDependencyAudit() =>
+        Assert.True(ReviewPolicyResolver.Resolve(Catalog, "security").IsEnabled(ReviewRuleId.Parse("DEPENDENCY.NUGET.VULNERABLE")));
 
     [Fact]
     public void SecurityProfile_IncludesTheStaticSecretRule() =>
@@ -70,7 +74,7 @@ public sealed class ReviewPolicyResolverTests
         var policy = ReviewPolicyResolver.Resolve(Catalog, "security", enable: ["DOTNET.ASYNC.ASYNC_VOID"]);
 
         Assert.True(policy.IsEnabled(ReviewRuleId.Parse("DOTNET.ASYNC.ASYNC_VOID")));
-        Assert.Equal(new HashSet<FindingCategory> { FindingCategory.Security, FindingCategory.BestPractices }, policy.Categories!.ToHashSet());
+        Assert.Equal(new HashSet<FindingCategory> { FindingCategory.Security, FindingCategory.Dependencies, FindingCategory.BestPractices }, policy.Categories!.ToHashSet());
     }
 
     [Fact]
