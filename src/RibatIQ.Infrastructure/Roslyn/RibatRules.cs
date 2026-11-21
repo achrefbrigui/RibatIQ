@@ -33,9 +33,9 @@ internal static class RibatRules
     public static IReadOnlyDictionary<string, (FindingSeverity Severity, FindingCategory Category)> Classification { get; } =
         new Dictionary<string, (FindingSeverity, FindingCategory)>(StringComparer.Ordinal)
         {
-            [EmptyCatchBlock.Id] = (FindingSeverity.Medium, FindingCategory.Reliability),
-            [AsyncVoid.Id] = (FindingSeverity.Medium, FindingCategory.Reliability),
-            [RethrowLosesStackTrace.Id] = (FindingSeverity.Low, FindingCategory.Reliability),
+            [EmptyCatchBlock.Id] = (FindingSeverity.Medium, FindingCategory.Correctness),
+            [AsyncVoid.Id] = (FindingSeverity.Medium, FindingCategory.BestPractices),
+            [RethrowLosesStackTrace.Id] = (FindingSeverity.Low, FindingCategory.Correctness),
             [HardcodedSecret.Id] = (FindingSeverity.High, FindingCategory.Security),
         };
 

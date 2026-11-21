@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 
 using RibatIQ.Application.Reporting;
 using RibatIQ.Domain.Findings;
+using RibatIQ.Domain.Results;
 
 namespace RibatIQ.Infrastructure.Reporting;
 
@@ -14,7 +15,7 @@ namespace RibatIQ.Infrastructure.Reporting;
 /// </summary>
 public sealed class JsonReportWriter : IReportWriter
 {
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -68,6 +69,7 @@ public sealed class JsonReportWriter : IReportWriter
                 summary.Total, summary.Critical, summary.High, summary.Medium, summary.Low, summary.Info,
                 summary.StaticAnalysis, summary.Ai),
             new GateDocument(report.FailOn.ToString(), report.FailingFindings, report.ThresholdExceeded),
+            result.Checks.Select(c => new CheckDocument(c.CheckId, c.Name, c.Status, c.Reason, c.RuleIds.Select(r => r.Value).ToArray(), result.CountFindings(c))).ToArray(),
             result.Findings.Select(ToDocument).ToArray(),
             result.Warnings.ToArray());
     }
@@ -80,11 +82,13 @@ public sealed class JsonReportWriter : IReportWriter
         finding.Category,
         finding.Origin,
         finding.Source,
-        finding.RuleId,
+        finding.RuleId?.Value,
+        finding.ToolRuleId,
         finding.FilePath,
         finding.StartLine,
         finding.EndLine,
         finding.SuggestedFix,
+        finding.Evidence,
         finding.Confidence);
 
     internal sealed record ReportDocument(
@@ -100,11 +104,15 @@ public sealed class JsonReportWriter : IReportWriter
         StatisticsDocument Statistics,
         SummaryDocument Summary,
         GateDocument Gate,
+        CheckDocument[] Checks,
         FindingDocument[] Findings,
         string[] Warnings);
 
     /// <summary>Outcome of the failure threshold: <c>failOn</c> is <c>none</c> or a severity.</summary>
     internal sealed record GateDocument(string FailOn, int FailingFindings, bool ThresholdExceeded);
+
+    /// <summary>One check: <c>completed</c>, <c>skipped</c> or <c>failed</c>, with the findings it reported.</summary>
+    internal sealed record CheckDocument(string Id, string Name, CheckStatus Status, string? Reason, string[] Rules, int Findings);
 
     internal sealed record ToolDocument(string Name, string Version);
 
@@ -123,9 +131,11 @@ public sealed class JsonReportWriter : IReportWriter
         FindingOrigin Origin,
         string Source,
         string? RuleId,
+        string? ToolRuleId,
         string File,
         int? StartLine,
         int? EndLine,
         string? SuggestedFix,
+        string? Evidence,
         double? Confidence);
 }

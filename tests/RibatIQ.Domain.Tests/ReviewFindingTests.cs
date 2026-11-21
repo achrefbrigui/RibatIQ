@@ -14,7 +14,7 @@ public sealed class ReviewFindingTests
             confidence: 0.8,
             origin: FindingOrigin.Ai,
             source: "openai",
-            ruleId: null);
+            toolRuleId: null);
 
         Assert.Equal("Possible null dereference", finding.Title);
         Assert.Equal("src/App/Service.cs", finding.FilePath);
@@ -102,7 +102,7 @@ public sealed class ReviewFindingTests
     [InlineData("abcdef0123456789abcdef012345678")]
     public void Constructor_WithMalformedId_Throws(string id) =>
         Assert.Throws<ArgumentException>(() => new ReviewFinding(
-            id, "Title", "Description", FindingSeverity.Low, FindingCategory.Style, "a.cs",
+            id, "Title", "Description", FindingSeverity.Low, FindingCategory.CleanCode, "a.cs",
             null, null, null, null, FindingOrigin.StaticAnalysis, "roslyn", null));
 
     [Fact]
@@ -113,7 +113,7 @@ public sealed class ReviewFindingTests
         var roundTripped = new ReviewFinding(
             original.Id, original.Title, original.Description, original.Severity, original.Category,
             original.FilePath, original.StartLine, original.EndLine, original.SuggestedFix,
-            original.Confidence, original.Origin, original.Source, original.RuleId);
+            original.Confidence, original.Origin, original.Source, original.ToolRuleId, original.RuleId, original.Evidence);
 
         Assert.Equal(original, roundTripped);
     }

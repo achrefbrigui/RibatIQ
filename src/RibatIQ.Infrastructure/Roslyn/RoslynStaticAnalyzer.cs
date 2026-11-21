@@ -93,7 +93,7 @@ public sealed class RoslynStaticAnalyzer : IStaticAnalyzer
             confidence: null,
             origin: FindingOrigin.StaticAnalysis,
             source: CompilerSource,
-            ruleId: diagnostic.Id);
+            toolRuleId: diagnostic.Id);
     }
 
     private static ReviewFinding ToRuleFinding(Diagnostic diagnostic, FindingSeverity severity, FindingCategory category)
@@ -111,7 +111,7 @@ public sealed class RoslynStaticAnalyzer : IStaticAnalyzer
             confidence: null,
             origin: FindingOrigin.StaticAnalysis,
             source: RibatRules.Source,
-            ruleId: diagnostic.Id);
+            toolRuleId: diagnostic.Id);
     }
 
     private static (string Path, int Start, int? End) GetLocation(Diagnostic diagnostic)

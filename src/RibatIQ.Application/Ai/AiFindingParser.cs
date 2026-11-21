@@ -134,7 +134,7 @@ public static class AiFindingParser
                 GetConfidence(item),
                 FindingOrigin.Ai,
                 source,
-                ruleId: null);
+                toolRuleId: null);
         }
         catch (ArgumentException)
         {
@@ -187,9 +187,11 @@ public static class AiFindingParser
         "CORRECTNESS" => FindingCategory.Correctness,
         "SECURITY" => FindingCategory.Security,
         "PERFORMANCE" => FindingCategory.Performance,
-        "RELIABILITY" => FindingCategory.Reliability,
-        "MAINTAINABILITY" => FindingCategory.Maintainability,
+        "BESTPRACTICES" => FindingCategory.BestPractices,
+        "CLEANCODE" => FindingCategory.CleanCode,
         "ARCHITECTURE" => FindingCategory.Architecture,
+        "TESTING" => FindingCategory.Testing,
+        "PRODUCTIONREADINESS" => FindingCategory.ProductionReadiness,
         _ => null,
     };
 }

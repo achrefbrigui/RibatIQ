@@ -6,6 +6,7 @@ using RibatIQ.Application.Reporting;
 using RibatIQ.Cli;
 using RibatIQ.Cli.Output;
 using RibatIQ.Domain.Findings;
+using RibatIQ.Domain.Rules;
 using RibatIQ.Domain.Results;
 using RibatIQ.Infrastructure.Reporting;
 
@@ -15,6 +16,7 @@ namespace RibatIQ.IntegrationTests;
 public sealed class ReportTests : IDisposable
 {
     private static readonly DateTimeOffset Start = new(2026, 11, 21, 10, 0, 0, TimeSpan.Zero);
+    private static readonly ReviewRuleId SecretRule = ReviewRuleId.Parse("SECURITY.EXPOSED_SECRET");
 
     private readonly TempDirectory _workspace = new();
 
@@ -23,12 +25,12 @@ public sealed class ReportTests : IDisposable
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Json_FollowsSchemaVersion1()
+    public async Task Json_FollowsSchemaVersion2()
     {
         using var json = await RenderJsonAsync(CreateReport(FailPolicy.AtOrAbove(FindingSeverity.High), withAi: true));
         var root = json.RootElement;
 
-        Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(2, root.GetProperty("schemaVersion").GetInt32());
         Assert.Equal("RibatIQ", root.GetProperty("tool").GetProperty("name").GetString());
         Assert.Equal("1.2.3", root.GetProperty("tool").GetProperty("version").GetString());
         Assert.Equal("review", root.GetProperty("kind").GetString());
@@ -59,6 +61,15 @@ public sealed class ReportTests : IDisposable
         Assert.True(gate.GetProperty("thresholdExceeded").GetBoolean());
 
         Assert.Equal(["Context truncated"], root.GetProperty("warnings").EnumerateArray().Select(w => w.GetString()));
+
+        var checks = root.GetProperty("checks").EnumerateArray().ToArray();
+        Assert.Equal(2, checks.Length);
+        Assert.Equal("roslyn.rules", checks[0].GetProperty("id").GetString());
+        Assert.Equal("completed", checks[0].GetProperty("status").GetString());
+        Assert.Equal(["SECURITY.EXPOSED_SECRET"], checks[0].GetProperty("rules").EnumerateArray().Select(r => r.GetString()));
+        Assert.Equal(1, checks[0].GetProperty("findings").GetInt32());
+        Assert.Equal("skipped", checks[1].GetProperty("status").GetString());
+        Assert.Equal("Not requested.", checks[1].GetProperty("reason").GetString());
     }
 
     [Fact]
@@ -72,7 +83,9 @@ public sealed class ReportTests : IDisposable
         Assert.Equal("high", roslyn.GetProperty("severity").GetString());
         Assert.Equal("security", roslyn.GetProperty("category").GetString());
         Assert.Equal("staticAnalysis", roslyn.GetProperty("origin").GetString());
-        Assert.Equal("RIQ1004", roslyn.GetProperty("ruleId").GetString());
+        Assert.Equal("SECURITY.EXPOSED_SECRET", roslyn.GetProperty("ruleId").GetString());
+        Assert.Equal("RIQ1004", roslyn.GetProperty("toolRuleId").GetString());
+        Assert.Equal("String literal assigned to ApiKey.", roslyn.GetProperty("evidence").GetString());
         Assert.Equal("src/My App/Config.cs", roslyn.GetProperty("file").GetString());
         Assert.Equal(3, roslyn.GetProperty("startLine").GetInt32());
         Assert.Equal(JsonValueKind.Null, roslyn.GetProperty("confidence").ValueKind);
@@ -83,6 +96,7 @@ public sealed class ReportTests : IDisposable
         Assert.Equal(0.7, ai.GetProperty("confidence").GetDouble());
         Assert.Equal("Return Task.", ai.GetProperty("suggestedFix").GetString());
         Assert.Equal(JsonValueKind.Null, ai.GetProperty("ruleId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, ai.GetProperty("toolRuleId").ValueKind);
     }
 
     [Fact]
@@ -156,7 +170,7 @@ public sealed class ReportTests : IDisposable
         await ReportPublisher.PublishAsync(CreateReport(null, withAi: false), "json", "reports/ribatiq.json", Context(), Ct);
 
         using var json = JsonDocument.Parse(await File.ReadAllTextAsync(path, Ct));
-        Assert.Equal(1, json.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(2, json.RootElement.GetProperty("schemaVersion").GetInt32());
         Assert.Equal(["ribatiq.json"], Directory.GetFiles(Path.GetDirectoryName(path)!).Select(Path.GetFileName));
     }
 
@@ -210,7 +224,8 @@ public sealed class ReportTests : IDisposable
     {
         var secret = ReviewFinding.Create(
             "Possible hard-coded secret", "'ApiKey' looks like a secret.", FindingSeverity.High, FindingCategory.Security,
-            "src/My App/Config.cs", 3, null, null, null, FindingOrigin.StaticAnalysis, "ribatiq-rules", "RIQ1004");
+            "src/My App/Config.cs", 3, null, null, null, FindingOrigin.StaticAnalysis, "ribatiq-rules", "RIQ1004",
+            SecretRule, evidence: "String literal assigned to ApiKey.");
 
         var findings = new List<ReviewFinding> { secret };
         AiAnalysisResult? ai = null;
@@ -219,14 +234,18 @@ public sealed class ReportTests : IDisposable
         if (withAi)
         {
             findings.Add(ReviewFinding.Create(
-                "Async void", "Exceptions are unobserved.", FindingSeverity.Medium, FindingCategory.Reliability,
+                "Async void", "Exceptions are unobserved.", FindingSeverity.Medium, FindingCategory.BestPractices,
                 "src/Service.cs", 8, null, "Return Task.", 0.7, FindingOrigin.Ai, "anthropic", null));
             ai = new AiAnalysisResult([findings[1]], [], "anthropic", "claude-opus-5-5", 2, new LlmUsage(1000, 100));
             metadata = new AnalysisMetadata("1.2.3", aiEnabled: true, "anthropic", "claude-opus-5-5");
         }
 
         var result = new AnalysisResult(
-            AnalysisKind.Review, "main...HEAD", findings, metadata, Start, Start.AddMilliseconds(1500), ["Context truncated"]);
+            AnalysisKind.Review, "main...HEAD", findings, metadata, Start, Start.AddMilliseconds(1500), ["Context truncated"],
+            [
+                CheckResult.Completed("roslyn.rules", "RibatIQ rules", [SecretRule]),
+                CheckResult.Skipped("nuget.audit", "NuGet vulnerability audit", "Not requested."),
+            ]);
 
         return new AnalysisReport(
             result,

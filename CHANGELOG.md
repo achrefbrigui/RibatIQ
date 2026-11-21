@@ -19,7 +19,7 @@ First MVP release.
 - Optional AI analysis with OpenAI (`gpt-6.2-astra` by default) or Anthropic (`claude-opus-5-5` by
   default) through their official SDKs, with bounded context, prompt-injection safeguards and strict
   validation of model output.
-- Console and JSON reports (`schemaVersion` 1), `--output` to a file.
+- Console and JSON reports (`schemaVersion` 2: catalogue and tool rule IDs, evidence, check outcomes), `--output` to a file.
 - `--fail-on` threshold applied after the report is written; documented exit codes 0-3.
 - Configuration through command-line options, `RIBATIQ_*` environment variables and `ribatiq.json`.
 - Stable, versioned finding fingerprints.

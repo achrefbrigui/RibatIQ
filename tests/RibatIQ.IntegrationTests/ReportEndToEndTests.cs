@@ -120,7 +120,7 @@ public sealed class ReportEndToEndTests : IDisposable
         Assert.Equal("review", root.GetProperty("kind").GetString());
         Assert.Equal("main...HEAD", root.GetProperty("target").GetString());
         Assert.Equal(1, root.GetProperty("statistics").GetProperty("changedFiles").GetInt32());
-        Assert.Equal("RIQ1001", root.GetProperty("findings")[0].GetProperty("ruleId").GetString());
+        Assert.Equal("RIQ1001", root.GetProperty("findings")[0].GetProperty("toolRuleId").GetString());
     }
 
     private async Task<(int ExitCode, string Output, string Error)> RunAsync(params string[] args)

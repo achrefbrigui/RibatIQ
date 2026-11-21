@@ -16,8 +16,12 @@ public sealed class AiPromptBuilder
     /// <summary>Severities and categories the model may use (style-only remarks are not requested).</summary>
     public static readonly IReadOnlyList<string> Severities = ["info", "low", "medium", "high", "critical"];
 
+    // Dependencies are audited by tools, not by the model, so that category is not offered to it.
     public static readonly IReadOnlyList<string> Categories =
-        ["correctness", "security", "performance", "reliability", "maintainability", "architecture"];
+    [
+        "correctness", "performance", "security", "bestPractices", "cleanCode",
+        "architecture", "testing", "productionReadiness",
+    ];
 
     public static LlmJsonSchema ResponseSchema { get; } = new(SchemaName, $$"""
         {

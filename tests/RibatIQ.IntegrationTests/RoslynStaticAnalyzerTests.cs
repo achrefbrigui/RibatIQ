@@ -35,7 +35,7 @@ public sealed class RoslynStaticAnalyzerTests
             """);
 
         var finding = Assert.Single(result.Findings);
-        Assert.Equal("CS1026", finding.RuleId);
+        Assert.Equal("CS1026", finding.ToolRuleId);
         Assert.Equal(3, finding.StartLine);
         Assert.Equal(FindingSeverity.High, finding.Severity);
         Assert.Equal(FindingCategory.Correctness, finding.Category);
@@ -70,7 +70,7 @@ public sealed class RoslynStaticAnalyzerTests
             }
             """);
 
-        AssertSingleRule(result.Findings, "RIQ1001", line: 6, FindingSeverity.Medium, FindingCategory.Reliability);
+        AssertSingleRule(result.Findings, "RIQ1001", line: 6, FindingSeverity.Medium, FindingCategory.Correctness);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class RoslynStaticAnalyzerTests
             }
             """);
 
-        Assert.Equal(["RIQ1002", "RIQ1002"], result.Findings.Select(f => f.RuleId));
+        Assert.Equal(["RIQ1002", "RIQ1002"], result.Findings.Select(f => f.ToolRuleId));
         Assert.Equal([3, 8], result.Findings.Select(f => f.StartLine));
         Assert.Contains("'Fire'", result.Findings[0].Description, StringComparison.Ordinal);
     }
@@ -132,7 +132,7 @@ public sealed class RoslynStaticAnalyzerTests
             }
             """);
 
-        AssertSingleRule(result.Findings, "RIQ1003", line: 5, FindingSeverity.Low, FindingCategory.Reliability);
+        AssertSingleRule(result.Findings, "RIQ1003", line: 5, FindingSeverity.Low, FindingCategory.Correctness);
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public sealed class RoslynStaticAnalyzerTests
             }
             """);
 
-        Assert.All(result.Findings, f => Assert.Equal("RIQ1004", f.RuleId));
+        Assert.All(result.Findings, f => Assert.Equal("RIQ1004", f.ToolRuleId));
         Assert.Equal([3, 4, 5, 6], result.Findings.Select(f => f.StartLine).Order());
         Assert.All(result.Findings, f =>
         {
@@ -195,7 +195,7 @@ public sealed class RoslynStaticAnalyzerTests
         IReadOnlyList<ReviewFinding> findings, string ruleId, int line, FindingSeverity severity, FindingCategory category)
     {
         var finding = Assert.Single(findings);
-        Assert.Equal(ruleId, finding.RuleId);
+        Assert.Equal(ruleId, finding.ToolRuleId);
         Assert.Equal(line, finding.StartLine);
         Assert.Equal(severity, finding.Severity);
         Assert.Equal(category, finding.Category);

@@ -21,7 +21,7 @@ public sealed class AiFindingParserTests
         var finding = Assert.Single(result.Findings);
         Assert.Equal("Resource leak", finding.Title);
         Assert.Equal(FindingSeverity.High, finding.Severity);
-        Assert.Equal(FindingCategory.Reliability, finding.Category);
+        Assert.Equal(FindingCategory.Correctness, finding.Category);
         Assert.Equal("src/a.cs", finding.FilePath);
         Assert.Equal(5, finding.StartLine);
         Assert.Equal(7, finding.EndLine);
@@ -163,7 +163,7 @@ public sealed class AiFindingParserTests
           "title": {{System.Text.Json.JsonSerializer.Serialize(title)}},
           "description": "The stream is never disposed.",
           "severity": "{{severity}}",
-          "category": "reliability",
+          "category": "correctness",
           "file": {{System.Text.Json.JsonSerializer.Serialize(file)}},
           "startLine": {{startLine}},
           "endLine": {{(endLine?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null")}},

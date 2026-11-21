@@ -138,7 +138,7 @@ See [Configuration](docs/configuration.md) and [`samples/ribatiq.json`](samples/
 - run: ribat review --base origin/${{ github.base_ref }} --format json --output ribatiq.json --fail-on high
 ```
 
-The JSON report (`schemaVersion` 1) contains the findings with stable IDs, a summary, the AI
+The JSON report (`schemaVersion` 2) contains the findings with stable IDs, a summary, the AI
 provider and usage, and a `gate` object with the threshold outcome.
 
 ## Limitations

@@ -13,7 +13,7 @@ public sealed class AiEndToEndTests : IDisposable
     private const string StartupFinding = """
         { "findings": [
           { "title": "Initialize can crash the process", "description": "Exceptions thrown after the await are unobserved.",
-            "severity": "critical", "category": "reliability", "file": "src/Sample.Web/Startup.cs",
+            "severity": "critical", "category": "bestPractices", "file": "src/Sample.Web/Startup.cs",
             "startLine": 9, "endLine": null, "suggestedFix": "Return Task.", "confidence": 0.75 },
           { "title": "Hallucinated", "description": "Points to a file that was never sent.",
             "severity": "high", "category": "security", "file": "src/Secrets.cs",

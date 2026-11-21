@@ -48,7 +48,7 @@ internal sealed class ConsoleReportWriter : IReportWriter
                 : string.Empty;
 
             await writer.WriteLineAsync(
-                $"{finding.Severity.ToString().ToUpperInvariant(),-8} {FormatLocation(finding)}  [{finding.RuleId ?? finding.Source}] {finding.Title}: {finding.Description}{confidence}")
+                $"{finding.Severity.ToString().ToUpperInvariant(),-8} {FormatLocation(finding)}  [{finding.RuleId?.Value ?? finding.ToolRuleId ?? finding.Source}] {finding.Title}: {finding.Description}{confidence}")
                 .ConfigureAwait(false);
 
             if (finding.SuggestedFix is { } fix)

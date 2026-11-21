@@ -96,7 +96,7 @@ public sealed class AiPipelineTests
     public async Task ScanService_WithAi_MergesFindings_AndRecordsProviderAndModel()
     {
         var staticFinding = ReviewFinding.Create(
-            "Empty catch block", "d", FindingSeverity.Medium, FindingCategory.Reliability, "src/a.cs", 2, null,
+            "Empty catch block", "d", FindingSeverity.Medium, FindingCategory.Correctness, "src/a.cs", 2, null,
             null, null, FindingOrigin.StaticAnalysis, "ribatiq-rules", "RIQ1001");
         var factory = new FakeLlmProviderFactory(new FakeLlmProvider(OneFinding));
         var service = new ScanService(
