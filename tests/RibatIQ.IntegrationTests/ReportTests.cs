@@ -6,8 +6,8 @@ using RibatIQ.Application.Reporting;
 using RibatIQ.Cli;
 using RibatIQ.Cli.Output;
 using RibatIQ.Domain.Findings;
-using RibatIQ.Domain.Rules;
 using RibatIQ.Domain.Results;
+using RibatIQ.Domain.Rules;
 using RibatIQ.Infrastructure.Reporting;
 
 namespace RibatIQ.IntegrationTests;
