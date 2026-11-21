@@ -31,12 +31,15 @@ public sealed class ArchitectureTests
     [InlineData("RibatIQ.Application")]
     public void CoreLayers_DoNotReferenceCliOrProviderSdks(string assemblyName)
     {
-        var forbiddenPrefixes = new[] { "System.CommandLine", "OpenAI", "Anthropic", "Octokit", "RibatIQ.Infrastructure", "ribat" };
+        var forbiddenPrefixes = new[] { "System.CommandLine", "OpenAI", "Anthropic", "Octokit", "RibatIQ.Infrastructure" };
         var references = GetReferencedAssemblyNames(assemblyName);
 
         foreach (var reference in references)
         {
             Assert.DoesNotContain(forbiddenPrefixes, prefix => reference.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+            // The CLI assembly is named "ribat"; compare exactly so RibatIQ.* assemblies do not match.
+            Assert.NotEqual("ribat", reference, StringComparer.OrdinalIgnoreCase);
         }
     }
 
