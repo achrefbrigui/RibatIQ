@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Adapters: LLM providers, Git, Roslyn, filesystem, serialization. -->
+  <ItemGroup>
+    <ProjectReference Include="..\RibatIQ.Application\RibatIQ.Application.csproj" />
+  </ItemGroup>
+</Project>

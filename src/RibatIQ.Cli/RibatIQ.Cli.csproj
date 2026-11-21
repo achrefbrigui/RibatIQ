@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>ribat</AssemblyName>
+    <RootNamespace>RibatIQ.Cli</RootNamespace>
+
+    <!-- Distributed as a .NET tool: `dotnet tool install -g RibatIQ.Cli` -> `ribat`. -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>ribat</ToolCommandName>
+    <PackageId>RibatIQ.Cli</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RibatIQ.Infrastructure\RibatIQ.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="RibatIQ.IntegrationTests" />
+  </ItemGroup>
+</Project>
