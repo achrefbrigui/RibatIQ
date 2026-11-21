@@ -95,6 +95,45 @@ public sealed class AiEndToEndTests : IDisposable
     }
 
     [Fact]
+    public async Task Review_WithAi_UsesCommittedProjectInstructions_AndReportsTheRuleId()
+    {
+        using var repo = new TempGitRepository();
+        repo.WriteFile("src/Paging.cs", "public static class Paging\n{\n}\n");
+        repo.WriteFile("review-rules.md", "# Conventions\nPage numbers are 1-based in this code base.\n");
+        repo.Commit("base");
+        repo.Git("switch", "-q", "-c", "feature");
+        repo.WriteFile("src/Paging.cs", "public static class Paging\n{\n    public static int Skip(int page, int size) => page * size;\n}\n");
+        repo.Commit("feature");
+        repo.WriteFile("review-rules.md", "Uncommitted edit that must not be used.\n");
+
+        var provider = new ScriptedProvider("""
+            { "findings": [
+              { "ruleId": "CORRECTNESS.BOUNDARY_CONDITION", "title": "Off-by-one in paging", "description": "Pages are 1-based, so the first page skips one page.",
+                "evidence": "page * size with 1-based pages", "severity": "medium", "category": "correctness",
+                "file": "src/Paging.cs", "startLine": 3, "endLine": null, "suggestedFix": "(page - 1) * size", "confidence": 0.8 }
+            ] }
+            """);
+
+        var result = await RunAsync(provider, repo.Path, "review", "--base", "main", "--provider", "anthropic", "--format", "json");
+
+        Assert.True(result.ExitCode == ExitCodes.Success, result.Error);
+        var request = Assert.Single(provider.Requests);
+        Assert.Contains("Page numbers are 1-based", request.UserPrompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("Uncommitted edit", request.UserPrompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("1-based", request.SystemPrompt, StringComparison.Ordinal);
+
+        using var json = System.Text.Json.JsonDocument.Parse(result.Output);
+        var finding = Assert.Single(json.RootElement.GetProperty("findings").EnumerateArray());
+        Assert.Equal("CORRECTNESS.BOUNDARY_CONDITION", finding.GetProperty("ruleId").GetString());
+        Assert.Equal("ai", finding.GetProperty("origin").GetString());
+        Assert.Equal("page * size with 1-based pages", finding.GetProperty("evidence").GetString());
+
+        var aiCheck = json.RootElement.GetProperty("checks").EnumerateArray().Single(c => c.GetProperty("id").GetString() == "ai-review");
+        Assert.Equal("completed", aiCheck.GetProperty("status").GetString());
+        Assert.Equal(1, aiCheck.GetProperty("findings").GetInt32());
+    }
+
+    [Fact]
     public async Task Review_WithAi_SendsOnlyChangedFiles_AndKeepsFindingsOnChangedLines()
     {
         using var repo = new TempGitRepository();
