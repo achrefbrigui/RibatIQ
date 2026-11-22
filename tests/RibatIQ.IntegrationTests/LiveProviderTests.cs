@@ -39,6 +39,15 @@ public sealed class LiveProviderTests
         await AssertProviderProducesValidResponseAsync(provider);
     }
 
+    [Fact]
+    public async Task Gemini_ReturnsSchemaValidFindings()
+    {
+        var key = RequireLive(OpenAiCompatibleService.Gemini.ApiKeyVariable);
+
+        await AssertProviderProducesValidResponseAsync(new OpenAiProvider(
+            key, Environment.GetEnvironmentVariable("RIBATIQ_LIVE_GEMINI_MODEL"), service: OpenAiCompatibleService.Gemini));
+    }
+
     internal static string RequireLive(string apiKeyVariable)
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable("RIBATIQ_LIVE_TESTS") == "1", "Set RIBATIQ_LIVE_TESTS=1 to run live provider tests.");

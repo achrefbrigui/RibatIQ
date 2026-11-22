@@ -16,9 +16,10 @@ First MVP release.
   files at the head revision and reporting only findings on changed lines.
 - Roslyn-based analysis without building: C# syntax errors and rules `RIQ1001` (empty catch),
   `RIQ1002` (async void), `RIQ1003` (`throw ex;`) and `RIQ1004` (possible hard-coded secret).
-- Optional AI analysis with OpenAI (`gpt-6.2-astra` by default) or Anthropic (`claude-opus-5-5` by
-  default) through their official SDKs, with bounded context, prompt-injection safeguards and strict
-  validation of model output.
+- Optional AI analysis with OpenAI (`gpt-6.2-astra` by default), Anthropic (`claude-opus-5-5` by
+  default) or Gemini (`gemini-4-hydrogen` by default, through its OpenAI-compatible endpoint, with a
+  fallback to plain JSON mode when strict schemas are rejected), with bounded context,
+  prompt-injection safeguards and strict validation of model output.
 - Console and JSON reports (`schemaVersion` 2: catalogue and tool rule IDs, evidence, check outcomes), `--output` to a file.
 - `--fail-on` threshold applied after the report is written; documented exit codes 0-3.
 - Configuration through command-line options, `RIBATIQ_*` environment variables and `ribatiq.json`.

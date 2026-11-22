@@ -19,12 +19,12 @@ internal sealed class AnalysisOptions
 
     public Option<string> Provider { get; } = new("--provider")
     {
-        Description = $"Enable AI analysis with this provider: {string.Join(", ", LlmProviders.All)}. Reads OPENAI_API_KEY or ANTHROPIC_API_KEY. Source excerpts are sent to the provider.",
+        Description = $"Enable AI analysis with this provider: {string.Join(", ", LlmProviders.All)}. Reads OPENAI_API_KEY, ANTHROPIC_API_KEY or GEMINI_API_KEY. Source excerpts are sent to the provider.",
     };
 
     public Option<string> Model { get; } = new("--model")
     {
-        Description = "Model to use. Defaults: openai gpt-6.2-astra, anthropic claude-opus-5-5.",
+        Description = "Model to use. Defaults: openai gpt-6.2-astra, anthropic claude-opus-5-5, gemini gemini-4-hydrogen.",
     };
 
     public Option<bool> NoAi { get; } = new("--no-ai")

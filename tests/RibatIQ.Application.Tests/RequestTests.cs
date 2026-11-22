@@ -51,7 +51,7 @@ public sealed class RequestTests
     [InlineData("openai", "openai")]
     [InlineData("Anthropic", "anthropic")]
     [InlineData(" OPENAI ", "openai")]
-    [InlineData("gemini", null)]
+    [InlineData("mistral", null)]
     [InlineData(null, null)]
     public void LlmProviders_Normalize(string? value, string? expected) =>
         Assert.Equal(expected, LlmProviders.Normalize(value));

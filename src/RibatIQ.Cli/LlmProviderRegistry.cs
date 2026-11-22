@@ -27,6 +27,8 @@ internal sealed class LlmProviderRegistry : ILlmProviderFactory
         {
             [LlmProviders.OpenAi] = model => OpenAiProvider.FromEnvironment(context.GetEnvironmentVariable, model),
             [LlmProviders.Anthropic] = model => AnthropicProvider.FromEnvironment(context.GetEnvironmentVariable, model),
+            [LlmProviders.Gemini] = model => OpenAiProvider.FromEnvironment(
+                context.GetEnvironmentVariable, model, service: OpenAiCompatibleService.Gemini),
         });
     }
 

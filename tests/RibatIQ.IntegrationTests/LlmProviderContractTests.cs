@@ -87,6 +87,7 @@ public abstract class LlmProviderContractTests
     {
         var handler = new StubHttpHandler()
             .Respond(HttpStatusCode.Unauthorized, ErrorBody($"invalid x-api-key {ApiKey}"))
+            .Respond(HttpStatusCode.BadRequest, ErrorBody($"echo {ApiKey}"))
             .Respond(HttpStatusCode.BadRequest, ErrorBody($"echo {ApiKey}"));
         var provider = CreateProvider(handler);
 
@@ -120,7 +121,8 @@ public abstract class LlmProviderContractTests
 
     private async Task<LlmErrorKind> FailureKindAsync(HttpStatusCode status, string body)
     {
-        var handler = new StubHttpHandler().Respond(status, body);
+        // Served twice: a provider may retry once with another request shape (Gemini's JSON fallback).
+        var handler = new StubHttpHandler().Respond(status, body).Respond(status, body);
         var ex = await Assert.ThrowsAsync<LlmProviderException>(() => CreateProvider(handler).GenerateAsync(Request, Ct));
         return ex.Kind;
     }
@@ -156,4 +158,23 @@ public sealed class AnthropicProviderContractTests : LlmProviderContractTests
     protected override string TruncatedBody() => AnthropicProviderTests.Message("""{"findings":[""", stopReason: "max_tokens");
 
     protected override string ErrorBody(string message) => AnthropicProviderTests.Error(message);
+}
+
+public sealed class GeminiProviderContractTests : LlmProviderContractTests
+{
+    protected override string ApiKeyVariable => OpenAiCompatibleService.Gemini.ApiKeyVariable;
+
+    private protected override ILlmProvider CreateProvider(StubHttpHandler handler) =>
+        new OpenAiProvider(
+            ApiKey,
+            options: new OpenAiProviderOptions { HttpClient = new HttpClient(handler), MaxRetries = 0 },
+            service: OpenAiCompatibleService.Gemini);
+
+    protected override string SuccessBody(string text) => OpenAiProviderTests.Completion(text, model: "served-model");
+
+    protected override string RefusalBody() => OpenAiProviderTests.Completion(content: null, refusal: "I can't help with that.");
+
+    protected override string TruncatedBody() => OpenAiProviderTests.Completion("""{"findings":[""", finishReason: "length");
+
+    protected override string ErrorBody(string message) => OpenAiProviderTests.Error(message);
 }
