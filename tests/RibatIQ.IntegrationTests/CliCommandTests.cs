@@ -123,7 +123,7 @@ public sealed class CliCommandTests : IDisposable
     }
 
     [Theory]
-    [InlineData("--provider", "gemini")]
+    [InlineData("--provider", "mistral")]
     [InlineData("--format", "xml")]
     [InlineData("--fail-on", "severe")]
     public async Task Scan_WithUnsupportedOptionValue_IsInvalidUsage(string option, string value) =>
@@ -248,7 +248,7 @@ public sealed class CliCommandTests : IDisposable
     [Fact]
     public async Task Environment_WithUnknownProvider_IsInvalidUsage()
     {
-        _environment["RIBATIQ_PROVIDER"] = "gemini";
+        _environment["RIBATIQ_PROVIDER"] = "mistral";
 
         var result = await RunAsync("scan", ".");
 
