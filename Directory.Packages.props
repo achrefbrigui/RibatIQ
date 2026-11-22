@@ -4,7 +4,7 @@
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup Label="CLI">
-    <PackageVersion Include="System.CommandLine" Version="2.0.15" />
+    <PackageVersion Include="System.CommandLine" Version="3.0.0" />
   </ItemGroup>
   <ItemGroup Label="Analysis">
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.12.0" />
