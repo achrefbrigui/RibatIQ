@@ -36,6 +36,7 @@ public sealed class CliCommandTests : IDisposable
         Assert.Contains("--provider", scanHelp, StringComparison.Ordinal);
         Assert.Contains("--model", scanHelp, StringComparison.Ordinal);
         Assert.Contains("ANTHROPIC_API_KEY", scanHelp, StringComparison.Ordinal);
+        Assert.Contains("GEMINI_API_KEY", scanHelp, StringComparison.Ordinal);
         Assert.Contains("--fail-on", scanHelp, StringComparison.Ordinal);
         Assert.Contains("--format", scanHelp, StringComparison.Ordinal);
         Assert.Contains("--output", scanHelp, StringComparison.Ordinal);
@@ -243,6 +244,18 @@ public sealed class CliCommandTests : IDisposable
 
         Assert.Equal(ExitCodes.InvalidUsage, result.ExitCode);
         Assert.Contains("RIBATIQ_FAIL_ON", result.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GeminiProvider_WithoutItsKey_IsInvalidUsage_AndNamesTheVariable()
+    {
+        _environment["OPENAI_API_KEY"] = "sk-openai-not-used";
+
+        var result = await RunAsync("scan", ".", "--provider", "gemini");
+
+        Assert.Equal(ExitCodes.InvalidUsage, result.ExitCode);
+        Assert.Contains("GEMINI_API_KEY is not set", result.Error, StringComparison.Ordinal);
+        Assert.Contains("sent to gemini", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
