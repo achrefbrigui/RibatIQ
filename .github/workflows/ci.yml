@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev, mvp]
+  pull_request:
+    branches: [main, dev, mvp]
+  workflow_dispatch:
+
+# Read-only token: CI only builds, tests and scans; it never pushes or comments.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-and-test:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET (version from global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (warnings are errors)
+        run: dotnet build --configuration Release --no-restore
+
+      # No API keys and no network access are needed; live provider tests are skipped.
+      - name: Test
+        run: dotnet test --configuration Release --no-build
+
+      # Dogfooding: RibatIQ scans its own solution with static analysis only (nothing is sent to an LLM).
+      - name: Scan RibatIQ with itself
+        run: >-
+          dotnet run --project src/RibatIQ.Cli --configuration Release --no-build --
+          scan RibatIQ.sln --no-ai --format json --output ribatiq-report.json
+
+      - name: Upload RibatIQ report
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ribatiq-report
+          path: ribatiq-report.json
+          if-no-files-found: error
+          retention-days: 14

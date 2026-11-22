@@ -1,0 +1,34 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Treat warnings seriously: analyzers on, warnings fail the build. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Product metadata -->
+    <Product>RibatIQ</Product>
+    <Company>RibatIQ contributors</Company>
+    <Copyright>Copyright (c) RibatIQ contributors</Copyright>
+    <Description>Open-source AI code intelligence for .NET.</Description>
+    <Version>0.1.0</Version>
+    <!-- Keep the reported version stable (no "+commit" suffix). -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
+    <!-- Packaging: only the CLI is published (as a .NET tool); libraries are internal to it. -->
+    <IsPackable>false</IsPackable>
+    <Authors>RibatIQ contributors</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/achrefbrigui/RibatIQ</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/achrefbrigui/RibatIQ.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>code-review;static-analysis;roslyn;csharp;dotnet;llm;openai;anthropic;dotnet-tool</PackageTags>
+  </PropertyGroup>
+</Project>
