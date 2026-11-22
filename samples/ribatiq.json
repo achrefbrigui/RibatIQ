@@ -1,6 +1,6 @@
 // Sample RibatIQ configuration. Copy it to the root of your repository as ribatiq.json.
 // Command-line options and RIBATIQ_* environment variables override these values.
-// API keys are never read from this file: set OPENAI_API_KEY or ANTHROPIC_API_KEY instead.
+// API keys are never read from this file: set OPENAI_API_KEY, ANTHROPIC_API_KEY or GEMINI_API_KEY instead.
 {
   "version": 1,
 

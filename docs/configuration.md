@@ -36,7 +36,7 @@ Two rules are deliberate exceptions:
 | Report format | `--format` | | | `console` |
 | Report file | `--output` | | | standard output |
 
-API keys are read only from `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`.
+API keys are read only from `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` and `GEMINI_API_KEY`.
 
 ## `ribatiq.json`
 
