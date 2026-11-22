@@ -12,7 +12,7 @@
 </p>
 
 RibatIQ is a code review agent for the command line. It reviews your pull requests or your whole
-solution with the AI model you choose (**OpenAI** or **Anthropic** today; providers are pluggable),
+solution with the AI model you choose (**OpenAI**, **Anthropic** or **Gemini** today; providers are pluggable),
 guided by your team's conventions in a `review-rules.md` file. Every AI finding is validated against
 the code the model was actually shown, and deterministic Roslyn analysis runs alongside as a safety
 net. Findings are reported for people (console) and for tools (JSON, CI exit codes).
@@ -31,7 +31,7 @@ leaves your machine.
 
 - .NET SDK 10.0.100 or later.
 - Git on the `PATH` for `ribat review`.
-- Optionally, an OpenAI or Anthropic API key for AI analysis.
+- Optionally, an OpenAI, Anthropic or Gemini API key for AI analysis (Gemini has a free tier).
 
 ## Installation
 
@@ -82,7 +82,7 @@ ribat --help | --version
 
 | Option | Description |
 |--------|-------------|
-| `--provider openai\|anthropic` | Enable AI analysis with this provider. |
+| `--provider openai\|anthropic\|gemini` | Enable AI analysis with this provider. |
 | `--model <id>` | Model to use (defaults: `gpt-6.2-astra`, `claude-opus-5-5`). |
 | `--no-ai` | Disable AI analysis; nothing is sent to a provider. |
 | `--format console\|json` | Report format (default `console`). |
@@ -141,6 +141,11 @@ Rules, profiles, `review-rules.md` and the meaning of skipped checks are describ
 |----------|------------------|---------------|
 | OpenAI | `OPENAI_API_KEY` | `gpt-6.2-astra` |
 | Anthropic | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
+| Gemini | `GEMINI_API_KEY` | `gemini-4-hydrogen` |
+
+Gemini is called through its OpenAI-compatible endpoint. Its free tier is enough to try RibatIQ, but on
+that tier Google may use what is sent to improve its products: use it on code you can share, such as
+`tests/Fixtures/AiSample`.
 
 See [Security and privacy](docs/security-and-privacy.md) for what is sent to providers and how model
 output is validated.

@@ -70,9 +70,9 @@ public sealed class SettingsResolverTests
     public void Resolve_WithUnknownProvider_ThrowsNamingTheSource()
     {
         var ex = Assert.Throws<ConfigurationException>(() =>
-            SettingsResolver.Resolve([EmptyCli, EmptyEnv with { Provider = "gemini" }, EmptyFile]));
+            SettingsResolver.Resolve([EmptyCli, EmptyEnv with { Provider = "mistral" }, EmptyFile]));
 
-        Assert.Contains("gemini", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("mistral", ex.Message, StringComparison.Ordinal);
         Assert.Contains("environment", ex.Message, StringComparison.Ordinal);
     }
 

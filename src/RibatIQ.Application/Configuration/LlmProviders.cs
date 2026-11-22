@@ -5,8 +5,9 @@ public static class LlmProviders
 {
     public const string OpenAi = "openai";
     public const string Anthropic = "anthropic";
+    public const string Gemini = "gemini";
 
-    public static IReadOnlyList<string> All { get; } = [OpenAi, Anthropic];
+    public static IReadOnlyList<string> All { get; } = [OpenAi, Anthropic, Gemini];
 
     /// <summary>Returns the canonical provider ID for <paramref name="value"/>, ignoring case, or <see langword="null"/> when unknown.</summary>
     public static string? Normalize(string? value)

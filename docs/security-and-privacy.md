@@ -17,11 +17,12 @@ RibatIQ prints a notice on standard error before sending anything.
 
 The repository is never sent as a whole. Requests go to the providers' official endpoints; variables
 such as `ANTHROPIC_BASE_URL` are ignored so that the destination of your code never changes silently.
-Each provider's own data-handling terms apply to what is sent.
+Each provider's own data-handling terms apply to what is sent. On Gemini's free tier, Google states that
+content sent may be used to improve its products; prefer a paid tier, or another provider, for private code.
 
 ## Credentials
 
-- API keys are read only from `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`.
+- API keys are read only from `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` and `GEMINI_API_KEY`.
 - `ribatiq.json` rejects unknown settings, so a key cannot be stored there by mistake.
 - Keys never appear in reports, logs or error messages: provider messages are shortened and the key
   is redacted; authentication errors never include provider details.

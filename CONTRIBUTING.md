@@ -39,7 +39,7 @@ and pass the tests on its own.
 Live tests call the real APIs and are billed. They run only when you opt in:
 
 ```bash
-RIBATIQ_LIVE_TESTS=1 OPENAI_API_KEY=... ANTHROPIC_API_KEY=... dotnet test
+RIBATIQ_LIVE_TESTS=1 OPENAI_API_KEY=... ANTHROPIC_API_KEY=... GEMINI_API_KEY=... dotnet test
 ```
 
 ## Reporting security issues

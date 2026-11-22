@@ -6,7 +6,7 @@ strict dependency direction. Vendor SDKs, Git and the CLI framework never reach 
 ```text
 RibatIQ.Cli  ──►  RibatIQ.Infrastructure  ──►  RibatIQ.Application  ──►  RibatIQ.Domain
 (System.CommandLine)   (Roslyn, Git, OpenAI,        (use cases, ports)        (findings, results)
-                        Anthropic, JSON)
+                        Anthropic, Gemini, JSON)
 ```
 
 `tests/RibatIQ.IntegrationTests/ArchitectureTests.cs` fails the build if Domain or Application
